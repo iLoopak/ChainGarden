@@ -1,5 +1,7 @@
 # Chain Garden
 
+Repository: [iLoopak/ChainGarden](https://github.com/iLoopak/ChainGarden).
+
 A small botanical strategy game about growing an engine, then choosing when to take it apart. A complete, browser-local Wave 1 built with React, TypeScript and Vite. No account, backend, external imagery, fonts or API keys.
 
 ## Play locally
