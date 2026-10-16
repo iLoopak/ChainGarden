@@ -1,4 +1,17 @@
-# Wave 1 verification — 16 October 2026
+# Verification — 16 October 2026
+
+## Direction lock and biopunk pass
+
+- ESLint, TypeScript, 33 Vitest tests and the production build passed.
+- Seven added tests cover exact forecasts, zero-cost inspection, no clock-driven progression, sequential score/combo playback and reconstruction of 1,000 turns from their actual event streams.
+- The committed Playwright suite now has five scenarios on each of two viewport projects. Its standalone run was attempted again; all ten cases were blocked at Chromium launch by the same macOS Mach-port sandbox restriction, before reaching the app. It is not reported as passed.
+- Real UI checks were automated through the available in-app Chromium browser using Playwright locators: a desktop 25-turn run finished at **496 points**, and a portrait run at **437 points**. Per-action turn accounting and repeated reloads preserved exactly one new summary per run.
+- Both layouts forecast a three-plant chain at **73 points** and resolved it to **73 points**. Inspection and cancellation consumed no turns; controls locked during normal-motion playback; the active SVG route reported source 20 and target 14 (C4 → C3).
+- The 390×844 flow also verified interrupted-run restoration, all six guide entries, keyboard seed selection, Escape cancellation, restart cancellation and reduced-motion settings. No horizontal overflow was observed. In the portrait forecast, the board ended at y=562.5 and the confirmation dock began at y=643, leaving the matrix unobscured.
+- Responsive opening checks also passed at 320×740, 768×1024 and 1280×720: no horizontal overflow and the start button remained inside the viewport. The final browser console reported no application errors.
+- Screenshots and structured browser-check evidence are saved in `output/playwright/biopunk-*` (ignored). These are Chromium viewport checks, not physical iPhone/Safari validation.
+
+## Original Wave 1 record
 
 ## Automated checks
 

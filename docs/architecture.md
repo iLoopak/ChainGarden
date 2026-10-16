@@ -12,7 +12,7 @@ IndexedDB adapter     visual playback in controller
 versioned atomic save envelope
 ```
 
-`src/engine` has no React, DOM, storage, time or unseeded randomness. `createRun`, `resolveAction`, `harvestValue`, `isLegalAction` and `legalActions` are ordinary deterministic functions. `resolveAction` clones its input and returns `{state, events, points, chain}`. Plant metadata is the shared vocabulary for mechanics and UI descriptions.
+`src/engine` has no React, DOM, storage, time or unseeded randomness. `createRun`, `resolveAction`, `previewHarvest`, `harvestValue`, `isLegalAction` and `legalActions` are ordinary deterministic functions. `resolveAction` clones its input and returns `{state, events, points, chain}`. Plant metadata is the shared vocabulary for mechanics and UI descriptions.
 
 React owns selection, inspection, dialogs and rendering only. It never advances turns, computes abilities or mutates the game state. It subscribes to an external controller with `useSyncExternalStore`. The engine remains usable in a worker, CLI, simulation, Capacitor or Tauri host.
 
@@ -26,9 +26,13 @@ The RNG is an unsigned 32-bit LCG with explicit next-state returns. The state in
 
 ## Presentation and interruption
 
-`GameController.play` resolves the turn synchronously, creates the full next save and queues its write before starting playback. The authoritative state is final while the display board animates the old board through harvest/plant/spread events. Growth stages settle together at the end to avoid a separate animation pause per growing plant. Event timing changes cannot change results.
+`GameController.play` resolves the turn synchronously, creates the full next save and queues its write before starting playback. The authoritative state is final while presentation remains sequential. Engine events carry immutable specimen snapshots: after growth/plant/spread, or just before a harvest removes the plant. These transient fields do not enter the save schema.
 
-Input locks until the current visual sequence finishes. Reduced motion uses zero-delay event steps. The active event highlights its position and the journal retains resources, copying, activations, harvests and spreading. The current log is presentation-only and is not persisted. A page reload restores the fully resolved board without replaying the action or adding points.
+`src/presentation/playback.ts` converts events into frames and applies each frame to the display board. Only contiguous seasonal growth is batched; effects with a source keep their exact FIFO sequence. The displayed score and combo progress with harvest frames. Tests reconstruct 1,000 turns from their events and compare every final board with the resolver output. React renders the supplied board, pulse events and source/target links; it never executes abilities.
+
+`previewHarvest` calls that same pure resolver on a clone and returns the full chain forecast. It cannot consume a turn, an offer, RNG state or a reward. Selecting/canceling a forecast is UI state only. Confirming invokes the controller once. This preserves score parity between forecast and execution without a second rules implementation.
+
+Input locks until the current visual sequence finishes. Reduced motion uses zero-delay frames and static source/target relationships. The journal preserves directed effects, resources, copying, activations, harvests and spreading; passive seasonal growth remains visible on the board instead of flooding the log. A page reload restores the fully resolved board without replaying the action or adding points. Plant geometry, the cultivation tray and all environment assets remain local SVG/CSS.
 
 ## Persistence
 

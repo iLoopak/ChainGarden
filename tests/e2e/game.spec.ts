@@ -30,10 +30,11 @@ test("plays a complete 25-turn garden and records one result across reload", asy
       if (await rose.count()) await rose.first().click();
       else
         await page.locator('.garden-tile:not([data-plant=""])').first().click();
+      await page.getByRole("button", { name: /Harvest · \d+ pts/ }).click();
     }
   }
   await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByText("A garden well grown.")).toBeVisible();
+  await expect(page.getByText("Cultivation complete.")).toBeVisible();
   const score = await page.getByTestId("final-score").textContent();
   expect(Number(score!.replace(/\D/g, ""))).toBeGreaterThan(0);
   await page.reload();
@@ -117,13 +118,44 @@ test("shows a three-plant chain, locks controls during playback and logs its cau
   await settle(page);
   await page.getByRole("button", { name: "Harvest", exact: true }).click();
   await page.getByTestId("tile-20").click();
+  await expect(page.getByTestId("turn")).toHaveText("1 / 25");
+  await expect(page.getByTestId("harvest-preview")).toContainText("73");
+  await page.getByRole("button", { name: "Harvest · 73 pts" }).click();
   await expect(page.locator(".board-frame")).toHaveClass(/resolving/);
   await expect(page.getByTestId("tile-14")).toBeDisabled();
   await settle(page);
   await expect(page.getByTestId("score")).toHaveText("73 pts");
   await expect(page.locator(".chain-feedback")).toContainText("3-plant chain");
+  await page.locator(".event-journal summary").click();
   await expect(page.locator(".event-journal")).toContainText(
     "Sunflower activated",
   );
   await expect(page.locator(".event-journal")).toContainText("×1.25");
+});
+
+test("reaction selection and cancellation never spend a turn, and the board waits", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await start(page);
+  await page.getByRole("button", { name: "Harvest", exact: true }).click();
+  await page.getByTestId("tile-20").click();
+  await expect(page.getByTestId("harvest-preview")).toBeVisible();
+  await expect(page.locator(".forecast-harvest")).toHaveCount(3);
+  await expect(page.getByTestId("turn")).toHaveText("0 / 25");
+  await expect(page.getByTestId("tile-20")).toHaveAttribute("data-growth", "1");
+  await page.getByRole("button", { name: "Cancel harvest preview" }).click();
+  await expect(page.getByTestId("turn")).toHaveText("0 / 25");
+  await expect(page.getByTestId("harvest-preview")).toHaveCount(0);
+  await page.getByTestId("tile-20").click();
+  const forecast = Number(
+    (await page
+      .locator(".forecast-stats strong")
+      .first()
+      .textContent())!.replace(/\D/g, ""),
+  );
+  await page.getByRole("button", { name: /Harvest · \d+ pts/ }).click();
+  await settle(page);
+  await expect(page.getByTestId("turn")).toHaveText("1 / 25");
+  await expect(page.getByTestId("score")).toHaveText(`${forecast} pts`);
 });

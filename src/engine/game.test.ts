@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  previewHarvest,
   comboMultiplier,
   createRun,
   harvestValue,
@@ -290,5 +291,35 @@ describe("resolution and scoring", () => {
     };
     expect(play(123456)).toEqual(play(123456));
     expect(createRun(1).offers).not.toEqual(createRun(99999).offers);
+  });
+});
+
+describe("reaction forecasts", () => {
+  it("forecasts the exact full chain without consuming a turn, offers or RNG", () => {
+    const planted = resolveAction(createRun(99), {
+      type: "plant",
+      index: 0,
+      offer: 0,
+    }).state;
+    const before = structuredClone(planted),
+      forecast = previewHarvest(planted, 20);
+    expect(forecast).toMatchObject({
+      points: 73,
+      chain: 3,
+      maxDepth: 1,
+      harvested: [20, 14, 21],
+    });
+    expect(planted).toEqual(before);
+    expect(previewHarvest(planted, 20)).toEqual(forecast);
+    const resolved = resolveAction(planted, { type: "harvest", index: 20 });
+    expect(forecast!.events).toEqual(resolved.events);
+    expect(forecast!.points).toBe(resolved.points);
+  });
+  it("returns no forecast for an empty slot or a finished run", () => {
+    const state = createRun(11);
+    expect(previewHarvest(state, 0)).toBeNull();
+    state.status = "finished";
+    state.turn = 25;
+    expect(previewHarvest(state, 20)).toBeNull();
   });
 });

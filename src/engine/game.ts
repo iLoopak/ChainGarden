@@ -7,6 +7,7 @@ import type {
   GameState,
   PlantKind,
   Resolution,
+  ReactionPreview,
 } from "./types";
 export const SIZE = 6;
 export const MAX_EVENTS = 256;
@@ -207,6 +208,7 @@ export function resolveAction(input: GameState, action: Action): Resolution {
         source,
         kind: plant.kind,
         text: `${PLANTS[plant.kind].name} grows`,
+        plant: { ...plant },
       });
     }
   }
@@ -228,6 +230,7 @@ export function resolveAction(input: GameState, action: Action): Resolution {
         index,
         depth,
         kind,
+        plant: { ...state.board[index]! },
         text: `${PLANTS[kind].name} planted${boosted ? " · 1 dew used" : ""}`,
       });
     } else if (event.type === "season") {
@@ -278,6 +281,9 @@ export function resolveAction(input: GameState, action: Action): Resolution {
             index,
             depth,
             kind: ability,
+            source: neighbors(index).find(
+              (i) => state.board[i]?.kind === ability,
+            ),
             text: `Mushroom echoes ${PLANTS[ability].name}`,
           });
         }
@@ -294,6 +300,7 @@ export function resolveAction(input: GameState, action: Action): Resolution {
         source: event.source,
         kind: plant.kind,
         points,
+        plant: { ...plant },
         text: `${PLANTS[plant.kind].name} +${points}${depth ? ` · ×${comboMultiplier(depth).toFixed(2)}` : ""}`,
       });
       state.board[index] = null;
@@ -329,6 +336,7 @@ export function resolveAction(input: GameState, action: Action): Resolution {
             source: index,
             depth: depth + 1,
             kind: "wildflower",
+            plant: { ...state.board[target]! },
             text: "A wildflower takes root",
           });
         }
@@ -349,4 +357,29 @@ export function resolveAction(input: GameState, action: Action): Resolution {
   if (state.turn >= state.maxTurns) state.status = "finished";
   else refill(state);
   return { state, events, chain, points };
+}
+
+/** A read-only forecast uses the exact resolver, including seasonal growth and later bonuses. */
+export function previewHarvest(
+  state: GameState,
+  index: number,
+): ReactionPreview | null {
+  const action: Action = { type: "harvest", index };
+  if (!isLegalAction(state, action)) return null;
+  const result = resolveAction(state, action);
+  return {
+    points: result.points,
+    chain: result.chain,
+    maxDepth: Math.max(
+      0,
+      ...result.events
+        .filter((e) => e.type === "harvested")
+        .map((e) => e.depth),
+    ),
+    harvested: result.events
+      .filter((e) => e.type === "harvested")
+      .map((e) => e.index),
+    events: result.events,
+    dewAfter: result.state.dew,
+  };
 }

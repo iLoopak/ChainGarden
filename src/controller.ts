@@ -2,6 +2,7 @@ import { createRun, resolveAction } from "./engine/game";
 import type { Action, GameEvent, GameState, Plant } from "./engine/types";
 import { emptySave, recordRun } from "./persistence/storage";
 import type { Persistence, SaveData, Settings } from "./persistence/storage";
+import { buildPlaybackFrames, presentEvents } from "./presentation/playback";
 import { freshRunId, freshSeed, playNote } from "./platform/browser";
 export interface ViewState {
   ready: boolean;
@@ -12,6 +13,10 @@ export interface ViewState {
   events: GameEvent[];
   grown: number[];
   active: GameEvent | null;
+  displayScore: number;
+  chainCount: number;
+  comboDepth: number;
+  pulses: GameEvent[];
   lastPoints: number;
   lastChain: number;
   error: string | null;
@@ -26,6 +31,10 @@ export class GameController {
     events: [],
     grown: [],
     active: null,
+    displayScore: 0,
+    chainCount: 0,
+    comboDepth: 0,
+    pulses: [],
     lastPoints: 0,
     lastChain: 0,
     error: null,
@@ -48,7 +57,12 @@ export class GameController {
   async initialize() {
     try {
       const data = await this.storage.load();
-      this.update({ ready: true, data, board: data.current?.board ?? [] });
+      this.update({
+        ready: true,
+        data,
+        board: data.current?.board ?? [],
+        displayScore: data.current?.score ?? 0,
+      });
     } catch (error) {
       this.update({
         ready: true,
@@ -78,6 +92,10 @@ export class GameController {
       grown: [],
       active: null,
       busy: false,
+      displayScore: run.score,
+      chainCount: 0,
+      comboDepth: 0,
+      pulses: [],
       lastPoints: 0,
       lastChain: 0,
     });
@@ -112,45 +130,60 @@ export class GameController {
       busy: true,
       events: [],
       grown: [],
+      pulses: [],
       active: null,
-      lastPoints: result.points,
-      lastChain: result.chain,
+      displayScore: current.score,
+      chainCount: 0,
+      comboDepth: 0,
+      lastPoints: 0,
+      lastChain: 0,
     });
-    const board = structuredClone(current.board);
-    const frames = result.events.filter((e) => e.type !== "growth");
-    let step = 0;
+    let board = structuredClone(current.board);
+    const frames = buildPlaybackFrames(result.events);
+    let step = 0,
+      displayedScore = current.score,
+      chainCount = 0,
+      comboDepth = 0;
     const advance = () => {
-      const event = frames[step++];
-      if (!event) {
+      const frame = frames[step++];
+      if (!frame) {
         this.update({
           busy: false,
-          grown: [
-            ...new Set(
-              result.events
-                .filter((e) => e.type === "growth")
-                .map((e) => e.index),
-            ),
-          ],
           board: result.state.board,
           active: null,
-          events: result.events.filter((e) => e.type !== "growth"),
+          pulses: [],
+          grown: [],
+          events: result.events,
+          displayScore: result.state.score,
+          chainCount: result.chain,
+          comboDepth,
+          lastPoints: result.points,
+          lastChain: result.chain,
         });
         return;
       }
-      if (event.type === "harvested") board[event.index] = null;
-      if (event.type === "planted" || event.type === "spread")
-        board[event.index] = result.state.board[event.index];
+      board = presentEvents(board, frame.events);
+      for (const event of frame.events) {
+        if (event.type === "harvested") {
+          displayedScore += event.points ?? 0;
+          chainCount++;
+          comboDepth = Math.max(comboDepth, event.depth);
+          if (this.view.data.settings.sound) playNote(event.depth);
+        }
+      }
       this.update({
-        board: [...board],
-        active: event,
-        events: [...this.view.events, event],
+        board,
+        active: frame.events[0],
+        pulses: frame.events,
+        grown: frame.events
+          .filter((e) => e.type === "growth")
+          .map((e) => e.index),
+        events: [...this.view.events, ...frame.events],
+        displayScore: displayedScore,
+        chainCount,
+        comboDepth,
       });
-      if (event.type === "harvested" && this.view.data.settings.sound)
-        playNote(event.depth);
-      this.timer = setTimeout(
-        advance,
-        still ? 0 : event.type === "harvested" ? 260 : 140,
-      );
+      this.timer = setTimeout(advance, still ? 0 : frame.duration);
     };
     advance();
   }

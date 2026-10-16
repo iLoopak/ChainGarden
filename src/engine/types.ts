@@ -54,10 +54,21 @@ export interface GameEvent {
   points?: number;
   kind?: PlantKind;
   source?: number;
+  /** Post-event specimen (pre-removal for a harvest), for exact visual playback. */
+  plant?: Plant;
 }
 export interface Resolution {
   state: GameState;
   events: GameEvent[];
   chain: number;
   points: number;
+}
+
+export interface ReactionPreview {
+  points: number;
+  chain: number;
+  maxDepth: number;
+  harvested: number[];
+  events: GameEvent[];
+  dewAfter: number;
 }

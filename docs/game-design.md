@@ -2,9 +2,9 @@
 
 ## Intent
 
-A magical botanical laboratory with the pace of a small personal experiment. A run takes 25 deliberate actions, ideally 3–5 minutes. The tension is between keeping productive plants and collecting their value. A sunflower or clover can be worth more alive; a rose turns that investment into a cascade.
+Variant A is locked: a tactical turn-based garden inside a living, experimental biopunk greenhouse. The game waits for the player; no clock, idle production or background automation advances the simulation. A run takes 25 deliberate actions, ideally 3–5 minutes. The tension is between keeping productive plants and collecting their value. A sunflower or clover can be worth more alive; a rose turns that investment into a cascade.
 
-The palette uses warm paper, forest ink, sage plots and restrained ochre, rose and lilac accents. Every species has an original local SVG silhouette. Growth dots, explicit labels and descriptions supplement color. No emoji plant art or remotely loaded visual assets.
+The board is the centerpiece. A compact cultivation tray uses forest charcoal, moss, warm stone and high-contrast botanical light. Amber pollen, lime scoring nodes, coral rose tissue and orchid spores identify roles; light is strongest when an actual event triggers. The start menu sits inside the matrix rather than beside a decorative marketing board. Every species has an original local SVG silhouette. Growth dots, explicit labels and descriptions supplement color. No emoji plant art or remotely loaded visual assets.
 
 ## Board and initial state
 
@@ -14,7 +14,7 @@ A seeded 32-bit linear congruential generator supplies three independent plant o
 
 ## An action costs exactly one turn
 
-1. Choose one offered seed and an empty plot, or choose a plant to harvest at any growth stage. Seeds cost no currency. An occupied plot in Plant mode opens inspection; it never silently harvests.
+1. Choose one offered seed and an empty plot, or select a plant to harvest at any growth stage, inspect the exact reaction forecast, then confirm **Release reaction**. Selection and cancellation do not spend a turn. Seeds cost no currency. An occupied plot in Plant mode opens inspection; it never silently harvests.
 2. Planting creates stage 0. If any dew is banked, automatically spend exactly 1 to start at stage 1. A root harvest removes and scores the chosen plant at its current stage, then queues its ability.
 3. All plants still on the board grow by 1, capped at stage 3. A new planted seed participates; a harvested root does not.
 4. Every now-ripe sunflower banks 1 dew, capped at 9 total. No dew over the cap is earned. Neighbors grown to ripe later by abilities begin producing on the next action.
@@ -63,10 +63,16 @@ An empty board has 108 legal plant actions. A full board has 36 legal harvest ac
 
 ## Feedback and accessibility
 
-Logic resolves immediately, then presentation plays planting, resources, copying, activations and harvests in event order. The growing garden settles to its final stages at the end. Controls lock during playback to prevent duplicate actions. The journal preserves the turn's causal sequence. Floating points, linked neighbors, ripe dots, selected seed checks and gentle plant motion explain state without relying solely on color.
+Logic resolves immediately, then presentation replays the actual event queue: planting, seasonal growth, resources, copying, directed growth, activations, harvests and spreading. Each event carries its specimen snapshot so stages and replacements appear exactly when they happen. Seasonal growth shares one visual frame; directed growth remains sequential. Score and combo counters rise with individual harvests rather than jumping to the final total before the chain begins. Controls lock during playback to prevent duplicate actions. The journal preserves the turn's causal sequence. Directed SVG energy links show the actual event source and target. Numbered forecast targets, harvest release ghosts, point bursts, a temporary mushroom echo reveal, charged growth nodes and selected seed checks explain state without relying solely on color. No visual mutation changes a plant’s rules: the echo reveal means Mushroom is copying an ability for this harvest only.
 
 Reduced motion removes idle movement and transition timing; event details remain available. Native modal dialogs trap focus and support Escape. Board and seed buttons have descriptive accessible labels. Sound is optional and off by default. No timers pressure the player.
 
 ## Deliberate Wave 1 boundaries
 
 One mode, one board size, six species, no consumable purchases, no undo, no backend. Balance is initial design rather than statistically tuned. Random offers are not guaranteed unique or equally valuable. Progression, challenges and broader device testing belong in Wave 2.
+
+## Board-first decisions
+
+The HUD shows score, remaining turns, spent turns and dew next to the matrix. Three specimen cards expose roles and abilities. Selecting a plant in either mode invokes the same pure resolver as committing it, without advancing state: the forecast lists the full score, harvest count, peak scoring depth and ordered targets. Forecast routes omit passive global growth so they show causal relationships rather than connecting every plot. On portrait screens a compact confirmation tray keeps the commit button accessible without covering the main board at standard phone heights.
+
+The turn phase strip is presentation only. Act → Grow → React → Your turn never runs until a legal action is committed. Screen space previously spent on editorial headings and an advice column is assigned to the matrix. The journal is collapsible and secondary to direct board feedback.

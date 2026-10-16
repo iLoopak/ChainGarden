@@ -31,10 +31,13 @@ describe("controller orchestration", () => {
     expect(controller.getSnapshot().busy).toBe(true);
     controller.play({ type: "harvest", index: 20 });
     expect(controller.run?.turn).toBe(1);
+    await vi.advanceTimersByTimeAsync(220);
+    expect(controller.getSnapshot().grown).toContain(14);
+    expect(controller.getSnapshot().board[14]?.growth).toBe(3);
     await vi.runAllTimersAsync();
     expect(controller.getSnapshot().busy).toBe(false);
     expect(controller.getSnapshot().board).toEqual(controller.run!.board);
-    expect(controller.getSnapshot().grown).toContain(14);
+    expect(controller.getSnapshot().grown).toEqual([]);
     expect(storage.data.current?.turn).toBe(1);
     const restored = new GameController(storage);
     await restored.initialize();
@@ -86,5 +89,45 @@ describe("controller orchestration", () => {
     await vi.runAllTimersAsync();
     expect(controller.run?.turn).toBe(1);
     expect(controller.getSnapshot().error).toContain("could not save");
+  });
+});
+
+describe("turn-based direction lock", () => {
+  it("never grows organisms or consumes turns just because time passes", async () => {
+    const storage = new MemoryStorage(),
+      controller = new GameController(storage);
+    await controller.initialize();
+    controller.start(23);
+    const before = structuredClone(controller.run);
+    await vi.advanceTimersByTimeAsync(300_000);
+    expect(controller.run).toEqual(before);
+    expect(controller.getSnapshot().busy).toBe(false);
+  });
+  it("reveals score and combo in harvest order while persisting the whole resolved turn", async () => {
+    const storage = new MemoryStorage(),
+      controller = new GameController(storage);
+    await controller.initialize();
+    controller.start(19);
+    controller.play({ type: "plant", index: 0, offer: 0 });
+    await vi.runAllTimersAsync();
+    const scores: number[] = [];
+    const unsubscribe = controller.subscribe(() =>
+      scores.push(controller.getSnapshot().displayScore),
+    );
+    controller.play({ type: "harvest", index: 20 });
+    expect(controller.run!.score).toBe(73);
+    expect(controller.getSnapshot().displayScore).toBe(30);
+    expect(controller.getSnapshot().chainCount).toBe(1);
+    await vi.runAllTimersAsync();
+    unsubscribe();
+    expect([...new Set(scores.filter((n) => n > 0))]).toEqual([30, 55, 73]);
+    expect(controller.getSnapshot()).toMatchObject({
+      busy: false,
+      displayScore: 73,
+      chainCount: 3,
+      comboDepth: 1,
+      lastPoints: 73,
+    });
+    expect(storage.data.current?.score).toBe(73);
   });
 });
