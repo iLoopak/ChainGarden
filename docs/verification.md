@@ -1,12 +1,23 @@
 # Wave 3 verification — 17 October 2026
 
-- Local lint, types, unit tests and production build run against the redesigned UI and schema-3 experience layer.
+- Local lint, TypeScript, all 95 Vitest tests (8 files) and production build pass against the redesigned UI and schema-3 experience layer. Final build: 52 modules, 43.16 kB CSS / 10.32 kB gzip and 319.39 kB JavaScript / 100.06 kB gzip.
 - Re-ran all 1,304 deterministic simulations: the JSON is byte-identical to the Wave 2 reference. No gameplay/balance rules changed.
 - Local standalone Chromium still fails at macOS `MachPortRendezvousServer` launch before page load; Linux CI runs the actual desktop/portrait test suite.
 - Rendered baseline audit: 1440×1000 desktop, 390×844 portrait garden, Lab and Guide. Rendered redesign: original M.O.S.S., title, guided targets, actual growth/reload, direct three-plant forecast 80 → actual 80 with heat 9, compact upgrades, populated desktop matrix and 10-plant forecast 459 → actual +459.
 - Generated screenshots live under ignored `output/playwright/wave3-*.jpg`.
 
-Remote CI and final screen verification are recorded after completion below.
+Actual in-app Chromium verification used ordinary rendered controls, without injecting engine state or save data:
+
+- Replayed the deterministic guide, reloaded at growth, and confirmed the actual three-plant forecast 80 → 80 points / 9 heat.
+- Installed actual upgrades at all four drafts; the ten-plant forecast 459 matched the resulting +459. A later forecast +156 matched execution and caused an actual overload: heat 87 → 35, two ripe plantings, contextual surprised M.O.S.S. response.
+- Completed all 25 turns at 717 points, best chain 10 and +14 Biomass. Opening Lab completed the guide. Reload preserved balance 38; the tutorial welcome did not repeat.
+- Inspected original M.O.S.S., title, guided placement/growth/reactor, upgrades, results, Lab and mutation cabinet. Final board layouts inspected at 1366×900 desktop and 390×844 portrait.
+- No horizontal overflow at 320×740, 390×664, 390×844, 768×1024 or 1280×720. All three seed choices are initially reachable in those sizes. The short portrait layout uses a smaller tray; the 320px header keeps pause reachable. No captured browser runtime errors/warnings.
+- The first Linux CI run passed 10/12 E2E cases and exposed two regressions: a desktop research tab's accessible name included its counter, and seed choices fell below the short iPhone viewport. Both were fixed. Responsive assertions now cover the short phone, 320px, tablet and low desktop as well as the two project defaults.
+
+Remaining verification boundaries: Safari/WebKit, Firefox, physical-device performance and screen-reader playtesting. Small screens may need scrolling for expanded details and guided explanations. No changes to the engine/economy/balance are claimed by this presentation pass.
+
+[Corrected Linux CI passed all verification steps](https://github.com/iLoopak/ChainGarden/actions/runs/39003215380): lint, types, 95 unit tests, production build, all 12 desktop/mobile E2E scenarios and 1,304 deterministic simulations. The E2E scenarios include real first-run completion, returning-player completion, single-payment reload, tutorial skip/replay, keyboard, touch and responsive boundaries.
 
 ---
 

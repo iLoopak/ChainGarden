@@ -30,9 +30,9 @@ Chains generate persistent reactor heat. Higher tiers strengthen deep harvests a
 Ten contextual mutations create persistent traits on individual plants. First discoveries earn **3 Biomass** once. Completed gardens earn at least 8 Biomass; spend it across ten research nodes in the Lab. Research adds choices instead of permanent global score boosts. The specimen cabinet records plants, secret traits, learned synergies, experiments, reactor rules and lifetime records. Select an illustration to inspect it; exact rules stay available through Details.
 
 - **Touch/mouse:** choose seed → empty plot; select plant → forecast → Release reaction. Selection/cancellation is free. Utility buttons show costs. Pruning asks you to select and confirm a plant.
-- **Keyboard:** 1–3 choose seeds, H inspect a Rose, P pause; Escape cancels a forecast or opens pause. Tab / Shift+Tab / Enter navigate.
+- **Keyboard:** 1–3 choose seeds, H inspect a Rose, P pause; Escape cancels a forecast or opens pause. Arrow keys move between enabled plots; Tab / Shift+Tab / Enter navigate.
 - **Pause:** optional sound, reduced motion, M.O.S.S. tips, replay tutorial, restart or save/home. **Skip playback** settles visual effects immediately without changing the outcome.
-- **Results:** score, best chain/turn, mutations, overloads, Biomass, research access and seed replay. Before the next run, choose protocol and optional specimens.
+- **Results:** score and personal best comparison, best chain, Biomass, discoveries and one-click Play again. Optional Run details reveal minor statistics and exact seed replay. Change protocol or seeds opens the next garden’s configuration.
 
 ## Checks
 
