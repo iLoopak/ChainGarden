@@ -335,6 +335,23 @@ test("responsive board, reachable choices and locked protocols on a fresh profil
       (await page.locator(".seed-card").last().boundingBox())!.y +
         (await page.locator(".seed-card").last().boundingBox())!.height,
     ).toBeLessThan(page.viewportSize()!.height);
+  const originalViewport = page.viewportSize()!;
+  for (const viewport of [
+    { width: 320, height: 740 },
+    { width: 390, height: 664 },
+    { width: 768, height: 1024 },
+    { width: 1280, height: 720 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    const choices = await page.locator(".seed-card").last().boundingBox();
+    expect(choices!.y + choices!.height).toBeLessThan(viewport.height);
+  }
+  await page.setViewportSize(originalViewport);
   if (testInfo.project.name === "mobile") {
     await page.getByTestId("tile-0").tap();
     await settle(page);

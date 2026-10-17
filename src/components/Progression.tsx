@@ -285,6 +285,7 @@ export function ResearchLab({
         {["Specimens", "Genetics", "Reactions", "Protocols"].map((c) => (
           <button
             key={c}
+            aria-label={c}
             aria-pressed={category === c}
             onClick={() => setCategory(c)}
           >
