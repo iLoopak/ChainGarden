@@ -36,7 +36,8 @@ export function presentEvents(
 ): (Plant | null)[] {
   const next = [...board];
   for (const event of events) {
-    if (event.type === "harvested") next[event.index] = null;
+    if (event.type === "harvested" || event.type === "destroyed")
+      next[event.index] = null;
     else if (event.plant) next[event.index] = { ...event.plant };
   }
   return next;

@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { GameController } from "./controller";
 import { comboMultiplier, createRun, previewHarvest } from "./engine/game";
-import { PLANT_KINDS } from "./engine/types";
+import type { RunOptions } from "./engine/types";
+import { BALANCE, challengeComplete } from "./engine/balance";
+import { mutationDefinition } from "./engine/content";
+import {
+  Reactor,
+  ResearchLab,
+  RunSetup,
+  UpgradeChoices,
+} from "./components/Progression";
 import { PlantArt } from "./components/PlantArt";
 import { Icon } from "./components/Icons";
 import { Modal, FieldGuide } from "./components/GameDialogs";
@@ -18,11 +26,12 @@ export default function App() {
     controller.getSnapshot,
   );
   const [modal, setModal] = useState<
-    "guide" | "pause" | "restart" | "journal" | null
+    "guide" | "pause" | "restart" | "journal" | "lab" | "setup" | null
   >(null);
   const [offer, setOffer] = useState(0);
-  const [mode, setMode] = useState<"plant" | "harvest">("plant");
+  const [mode, setMode] = useState<"plant" | "harvest" | "prune">("plant");
   const [inspected, setInspected] = useState<number | null>(null);
+  const [seenReveal, setSeenReveal] = useState("");
   const opening = useMemo(() => createRun(314159), []);
   const run = view.data.current;
   const playing = view.screen === "garden";
@@ -31,17 +40,33 @@ export default function App() {
     playing && run ? run : run?.status === "playing" ? run : opening;
   const preview = useMemo(
     () =>
-      run && inspected !== null && !view.busy
+      run && inspected !== null && !view.busy && mode !== "prune"
         ? previewHarvest(run, inspected)
         : null,
-    [run, inspected, view.busy],
+    [run, inspected, view.busy, mode],
   );
+  const revealKey = `${run?.id}-${run?.turn}`;
+  const discoveries = view.events.filter(
+    (e) => e.type === "mutation" && e.first,
+  );
+  const reveal =
+    playing && !view.busy && discoveries.length > 0 && seenReveal !== revealKey;
+  const drafting = playing && !!run?.pendingUpgrade.length && !view.busy;
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [view.screen]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (modal || !playing || finished || !view.ready || view.busy) return;
+      if (
+        modal ||
+        drafting ||
+        reveal ||
+        !playing ||
+        finished ||
+        !view.ready ||
+        view.busy
+      )
+        return;
       if (e.key === "Escape" && inspected !== null) {
         e.preventDefault();
         setInspected(null);
@@ -63,9 +88,18 @@ export default function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [modal, playing, finished, view.ready, view.busy, inspected]);
-  function start(seed?: number) {
-    controller.start(seed);
+  }, [
+    modal,
+    drafting,
+    reveal,
+    playing,
+    finished,
+    view.ready,
+    view.busy,
+    inspected,
+  ]);
+  function start(seed?: number, options: RunOptions = {}) {
+    controller.start(seed, options);
     setOffer(0);
     setMode("plant");
     setInspected(null);
@@ -73,7 +107,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   }
   function tile(index: number) {
-    if (!run || view.busy) return;
+    if (
+      !run ||
+      view.busy ||
+      run.pendingUpgrade.length ||
+      run.blocked.includes(index)
+    )
+      return;
     if (run.board[index]) setInspected(inspected === index ? null : index);
     else if (mode === "plant") {
       controller.play({ type: "plant", index, offer });
@@ -139,6 +179,14 @@ export default function App() {
           >
             <Icon name="leaf" size={18} />
           </button>
+          <button
+            className="text-button lab-button"
+            aria-label="Research lab"
+            onClick={() => setModal("lab")}
+          >
+            <Icon name="dew" size={16} />
+            <span>Lab · {view.data.profile.biomass}</span>
+          </button>
           {playing && (
             <button
               className="icon-button"
@@ -166,7 +214,7 @@ export default function App() {
             </h1>
           </div>
           <span className="run-seed">
-            {playing ? `SEED ${chamber.seed}` : "TURN-BASED STRATEGY / VOL. 01"}
+            {playing ? `SEED ${chamber.seed}` : "TURN-BASED STRATEGY / VOL. 02"}
           </span>
         </div>
         <div className="chamber-workspace">
@@ -207,6 +255,18 @@ export default function App() {
                 <i key={i} className={i < chamber.turn ? "spent" : ""} />
               ))}
             </div>
+            {playing && run && (
+              <Reactor
+                heat={view.displayHeat}
+                run={run}
+                reason={
+                  view.busy
+                    ? view.active?.text
+                    : view.events.filter((e) => e.heat !== undefined).at(-1)
+                        ?.text
+                }
+              />
+            )}
             <div className="chamber-tray">
               <GardenBoard
                 board={
@@ -217,8 +277,9 @@ export default function App() {
                     : chamber.board
                 }
                 mode={mode}
+                blocked={chamber.blocked}
                 busy={view.busy}
-                inactive={!playing || !!finished}
+                inactive={!playing || !!finished || drafting || !!reveal}
                 inspected={inspected}
                 preview={preview}
                 events={view.events}
@@ -251,7 +312,9 @@ export default function App() {
                   <button
                     className="primary-button"
                     onClick={() =>
-                      run?.status === "playing" ? controller.resume() : start()
+                      run?.status === "playing"
+                        ? controller.resume()
+                        : setModal("setup")
                     }
                   >
                     {run?.status === "playing"
@@ -337,6 +400,12 @@ export default function App() {
               }}
               onCancel={() => setInspected(null)}
               onHarvest={harvest}
+              onSkip={() => controller.skipPlayback()}
+              onUtility={(action) => {
+                controller.play(action);
+                setInspected(null);
+                if (action.type === "prune") setMode("plant");
+              }}
             />
           ) : (
             <aside className="opening-notes">
@@ -374,7 +443,7 @@ export default function App() {
                 </li>
               </ol>
               <div className="specimen-roster">
-                {PLANT_KINDS.map((kind) => (
+                {opening.config.pool.map((kind) => (
                   <PlantArt key={kind} kind={kind} />
                 ))}
               </div>
@@ -414,7 +483,7 @@ export default function App() {
                       {event.source !== undefined
                         ? `${coordinate(event.source)} → `
                         : ""}
-                      {coordinate(event.index)}
+                      {event.index >= 0 ? coordinate(event.index) : "LAB"}
                     </b>
                     <span>{event.text}</span>
                   </li>
@@ -436,13 +505,84 @@ export default function App() {
         </span>
         <span>PROGRESS SAVES AFTER EVERY TURN</span>
       </footer>
+      {modal === "setup" && (
+        <Modal
+          title="Prepare the chamber"
+          className="setup-modal"
+          onClose={() => setModal(null)}
+        >
+          <RunSetup
+            data={view.data}
+            onStart={(options) => start(undefined, options)}
+          />
+        </Modal>
+      )}
+      {modal === "lab" && (
+        <Modal
+          title="The research lab"
+          className="lab-modal"
+          onClose={() => setModal(null)}
+        >
+          <ResearchLab
+            data={view.data}
+            onPurchase={(id) => controller.purchase(id)}
+          />
+        </Modal>
+      )}
+      {!modal && reveal && (
+        <Modal
+          title="New tissue discovered."
+          className="discovery-modal"
+          onClose={() => setSeenReveal(revealKey)}
+        >
+          <span className="eyebrow">FIRST OBSERVATION · RESEARCH SECURED</span>
+          {discoveries.map((e, i) => {
+            const m = mutationDefinition(e.mutation!);
+            return (
+              <article className="discovery-reveal" key={i}>
+                <PlantArt kind={e.kind!} />
+                <div>
+                  <h3>{m.name}</h3>
+                  <p>{m.effect}</p>
+                  <small>{m.prerequisite}</small>
+                </div>
+              </article>
+            );
+          })}
+          <p className="discovery-bonus">
+            +{new Set(discoveries.map((e) => e.mutation)).size * 3} Biomass ·
+            added to the field guide
+          </p>
+          <button
+            className="primary-button full"
+            onClick={() => setSeenReveal(revealKey)}
+          >
+            Continue cultivation <Icon name="arrow" />
+          </button>
+        </Modal>
+      )}
+      {!modal && !reveal && drafting && run && (
+        <Modal
+          title="Evolve your experiment."
+          className="upgrade-modal"
+          dismissible={false}
+          onClose={() => {}}
+        >
+          <UpgradeChoices
+            run={run}
+            onChoose={(upgrade) =>
+              controller.play({ type: "upgrade", upgrade })
+            }
+          />
+        </Modal>
+      )}
       {modal === "guide" && (
         <Modal
           title="The field guide"
           className="guide-modal"
           onClose={() => setModal(null)}
         >
-          <FieldGuide />
+          <FieldGuide data={view.data} />
         </Modal>
       )}
       {modal === "journal" && (
@@ -542,8 +682,11 @@ export default function App() {
             Your current garden will be replaced. Your personal best and
             completed gardens stay in your journal.
           </p>
-          <button className="primary-button full" onClick={() => start()}>
-            Plant a new beginning
+          <button
+            className="primary-button full"
+            onClick={() => setModal("setup")}
+          >
+            Configure a new beginning
             <Icon name="arrow" />
           </button>
           <button className="text-button full" onClick={() => setModal(null)}>
@@ -551,7 +694,7 @@ export default function App() {
           </button>
         </Modal>
       )}
-      {finished && !modal && (
+      {finished && !modal && !reveal && (
         <Modal
           title="Cultivation complete."
           className="results-modal"
@@ -586,17 +729,56 @@ export default function App() {
               <span>best turn</span>
             </div>
           </div>
+          <div className="reward-panel">
+            <span className="eyebrow">RESEARCH YIELD</span>
+            <strong data-testid="biomass-earned">
+              +{view.data.completed.find((s) => s.id === run!.id)?.biomass ?? 0}{" "}
+              Biomass
+            </strong>
+            <p>
+              {run!.discoveries.length} mutation types observed ·{" "}
+              {run!.stats.overloads} overloads
+            </p>
+            <p>
+              {view.data.completed
+                .find((s) => s.id === run!.id)
+                ?.discoveries.map((id) => mutationDefinition(id).name)
+                .join(" · ") || "Every experiment builds knowledge."}
+            </p>
+            <button className="text-button" onClick={() => setModal("lab")}>
+              Research your next experiment · {view.data.profile.biomass}{" "}
+              Biomass <Icon name="arrow" size={14} />
+            </button>
+          </div>
+          {run!.config.challenge && (
+            <p className="challenge-result">
+              Containment Trial ·{" "}
+              {challengeComplete(run!)
+                ? "Objective achieved · +6 Biomass included"
+                : `Target: ${BALANCE.challengeTarget} points + one overload`}
+            </p>
+          )}
           <p className="result-tip">
             {run!.stats.bestChain < 3
               ? "Next time: gather ripe plants around a rose, then harvest the rose to set your chain in motion."
               : "A well-placed clover makes every link in your next chain a little more rewarding."}
           </p>
-          <button className="primary-button full" onClick={() => start()}>
+          <button
+            className="primary-button full"
+            onClick={() => setModal("setup")}
+          >
             Begin next run
             <Icon name="arrow" />
           </button>
           <div className="pause-actions">
-            <button className="text-button" onClick={() => start(run!.seed)}>
+            <button
+              className="text-button"
+              onClick={() => {
+                controller.replay();
+                setInspected(null);
+                setMode("plant");
+              }}
+            >
               Replay this seed
             </button>
             <button className="text-button" onClick={() => controller.home()}>

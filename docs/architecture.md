@@ -1,60 +1,60 @@
 # Architecture
 
-## Layers and boundaries
+## Boundaries
 
 ```text
-React views / CSS / reusable local SVGs
-                  ↓ user intent
-GameController → pure TypeScript engine
-       ↓                   ↓ resolved state + ordered event log
-IndexedDB adapter     visual playback in controller
+React views / CSS / local SVG specimens
+                  ↓ intents
+GameController → pure TypeScript engine + content registries
+       ↓                   ↓ state + ordered events
+IndexedDB adapter      independent visual playback
        ↓
-versioned atomic save envelope
+versioned atomic save + progression ledger
 ```
 
-`src/engine` has no React, DOM, storage, time or unseeded randomness. `createRun`, `resolveAction`, `previewHarvest`, `harvestValue`, `isLegalAction` and `legalActions` are ordinary deterministic functions. `resolveAction` clones its input and returns `{state, events, points, chain}`. Plant metadata is the shared vocabulary for mechanics and UI descriptions.
+The engine has no React, DOM, clock, storage or unseeded randomness. `createRun`, `resolveAction`, `previewHarvest`, `harvestValue`, `isLegalAction` and `legalActions` are deterministic functions. Input state is cloned before a transition. UI components select, inspect and render; they do not implement abilities or rewards. The controller exposes an external store through `useSyncExternalStore`.
 
-React owns selection, inspection, dialogs and rendering only. It never advances turns, computes abilities or mutates the game state. It subscribes to an external controller with `useSyncExternalStore`. The engine remains usable in a worker, CLI, simulation, Capacitor or Tauri host.
+`src/engine/content.ts` is the shared registry of research, upgrades, protocols and mutation metadata, eligibility and symmetric conflicts. `balance.ts` contains shared tuning constants. `grid.ts` owns ordered adjacency. `mutations.ts` evaluates contextual trait eligibility and returns transformation snapshots. `plants.ts` owns plant metadata. The resolver is the only executor of abilities, heat, collateral, scoring, utility costs, milestone generation and turn completion.
 
-## Resolution
+## State and event resolution
 
-A serializable 36-element board contains null or a plant with a unique increasing ID, kind, growth stage and birth turn. Actions validate before mutation. The queue begins with the user's action and a seasonal-growth event. A root harvest appends its ability after the season. Abilities append child growth or activation events; activation may append a harvest, which appends another ability. FIFO ordering gives breadth-first chains with explicit depth.
+A version-2 run contains a 36-slot board with stable increasing plant IDs, growth, birth turn, optional trait IDs and cumulative resonance exposure. It also contains blocked indices, ordered seed pool, protocol/challenge/research snapshot, original seed, seed RNG, independent upgrade RNG, pending draft choices, upgrades, consumable charges, heat, discoveries and stats. Everything needed to resume a draft or reproduce a transition is serializable.
 
-Targeted events carry both a position and the expected plant ID. An `activated` set and `harvested` set prevent repeated processing. The 256-event limit is a final safety bound, and adds a diagnostic event if hit. No recursion is used. Every score is derived from the board at the time of that harvest.
+The FIFO queue starts with the root action and seasonal phase. Harvest appends its ability after the season; abilities append ID-targeted growth/activation; activation may append another harvest. Depth is explicit. The activated/harvested sets guard each organism; the network relay set, first-echo/replication flags and one-transfer mutation pass bound repeat effects. Queue processing has a 1,024-event final guard. No recursive rule execution is used. Trait copies append a finite number of abilities and do not copy repeat scheduling.
 
-The RNG is an unsigned 32-bit LCG with explicit next-state returns. The state includes initial seed and current RNG state. Run IDs come from the platform layer, never from game RNG. No timestamps enter rules or scoring.
+Root planting/harvesting/pruning/venting spend turns. Upgrade and recycler actions are separate legal transition variants with explicitly zero turn/growth cost. A pending draft blocks other actions. Mutations, optional collateral and latched overload are deterministic post-chain phases. Scores use the board and heat at each harvest, preserving ordering choices. Every board mutation emits a snapshot or removal event so presentation can reconstruct the exact final board.
 
-## Presentation and interruption
+## Playback and forecasts
 
-`GameController.play` resolves the turn synchronously, creates the full next save and queues its write before starting playback. The authoritative state is final while presentation remains sequential. Engine events carry immutable specimen snapshots: after growth/plant/spread, or just before a harvest removes the plant. These transient fields do not enter the save schema.
+The controller resolves immediately, records the full save and queues its write before visual playback. Its displayed board, score, heat, pulses and combo advance through `presentation/playback.ts` frames independently of the authoritative state. Seasonal growth can share one frame; directed effects retain order. Harvest/destruction remove from the display; plant/growth/spread/mutation snapshots replace a specimen. Overload points are included in sequential score playback. Skip cancels the current timer and presents the authoritative final state exactly once. Reduced motion uses zero-delay frames.
 
-`src/presentation/playback.ts` converts events into frames and applies each frame to the display board. Only contiguous seasonal growth is batched; effects with a source keep their exact FIFO sequence. The displayed score and combo progress with harvest frames. Tests reconstruct 1,000 turns from their events and compare every final board with the resolver output. React renders the supplied board, pulse events and source/target links; it never executes abilities.
+`previewHarvest` calls the same resolver without committing its result. It returns exact points, depth, ordered harvests, collateral indices, heat/dew afterward and the full event stream, including overload. Forecasts cannot alter RNG, rewards, seed offers or state. React never maintains an alternative scoring model.
 
-`previewHarvest` calls that same pure resolver on a clone and returns the full chain forecast. It cannot consume a turn, an offer, RNG state or a reward. Selecting/canceling a forecast is UI state only. Confirming invokes the controller once. This preserves score parity between forecast and execution without a second rules implementation.
+Discovery reveals are presentation state derived from first-discovery events. Rewards have already been recorded. Reload restores collection entries and currency without replaying either the action or an award. Native dialogs trap focus; mandatory draft dialogs cannot be dismissed into a playable board without choosing. Pause, setup, guide and research remain ordinary UI views.
 
-Input locks until the current visual sequence finishes. Reduced motion uses zero-delay frames and static source/target relationships. The journal preserves directed effects, resources, copying, activations, harvests and spreading; passive seasonal growth remains visible on the board instead of flooding the log. A page reload restores the fully resolved board without replaying the action or adding points. Plant geometry, the cultivation tray and all environment assets remain local SVG/CSS.
+## Persistence and migration
 
-## Persistence
+IndexedDB database `chain-garden`, physical version 1, store `garden`, key `save`. The envelope has independent `schemaVersion: 2` and contains:
 
-IndexedDB database `chain-garden`, version 1, store `garden`, key `save`. The envelope has its own `schemaVersion: 1`:
+- `current`: validated version-2 run snapshot, or null.
+- `settings`: sound and reduced motion.
+- `best` and up to 100 newest completed summaries with score, protocol, discoveries and earned Biomass.
+- `profile`: exact purchase ledger, balance/lifetime earned, unique discovery and synergy IDs, lifetime completed-run reward ledger.
 
-- `current`: a full validated run snapshot or null.
-- `settings`: optional sound and reduced motion preferences.
-- `best`: best completed run score.
-- `completed`: newest-first summaries, maximum 100, each keyed by a unique run ID.
+`recordRun` atomically combines a snapshot, new discoveries, reward ledgers, currency and completed summary. Separate lifetime IDs survive visible history trimming. `purchaseResearch` verifies funds, dependencies and ownership before an immutable debit. The decoder checks safe integers, known content, IDs, locked pool membership, trait caps, compatible upgrades, milestone phases, exact research prices, dependency order, unique rewards and the accounting equation. Unknown/damaged data remains untouched; a failed initial load disables writes for the in-memory fallback session.
 
-The full envelope is one `readwrite` transaction, so the completion entry, best score and final snapshot commit together. Controller writes are serialized, preventing old snapshots from overwriting later actions. `recordRun` is idempotent by run ID; restoring a finished run never records another completion. Replaying a seed gets a new run ID.
+Version-1 migration preserves garden, seed stream, ordered six-species pool, settings and history. Mycology/Xerophytes become explicit free legacy grants; historical completions get their new payout entered once in the ledger. `draftAfterTurn` records the interruption point so past milestones are skipped and future milestones remain valid. Fresh replay returns to the normal four milestones and preserves the original ordered pool. See [progression.md](progression.md) for migration/economy policy.
 
-The decoder checks schema, dimensions, phases, stage ranges, IDs, offers, RNG, counters and history before accepting data. Unknown versions and invalid data produce a visible notice and a playable in-memory session. No speculative migration changes an unknown format. A future migration should explicitly map envelope versions before decoding. Storage error handling does not claim that unsaved progress is durable.
+Controller writes are serialized. Each save is a single IndexedDB readwrite transaction; a crash may lose the latest uncommitted transition, but cannot split a currency award from its reward ID. This is local data integrity, not anti-cheat. Multiple simultaneously writing tabs are unsupported; no cross-tab lock or cloud sync is claimed.
 
-The first action cannot happen until initial loading finishes. A browser crash during a pending IndexedDB commit may lose the last uncommitted turn; it cannot double an award. Multi-tab ownership/coordination is a documented future limitation.
+## Portability
 
-## Platform adapters
+`platform/browser.ts` contains cryptographic seeds, unique run IDs and optional synthesized sound. Storage implements a small `Persistence` interface. Native storage, haptics and lifecycle flushing can be supplied by later Capacitor/Tauri adapters without moving rules into React. Assets use relative URLs. No backend, external imagery, fonts or required services. Offline service-worker packaging is not implemented.
 
-`src/platform/browser.ts` owns cryptographic seeds, unique run IDs and synthesized Web Audio. The IndexedDB implementation conforms to the small `Persistence` interface and can be replaced with native storage. Vite uses relative asset paths. No router, cookies, cloud service, remote images or external fonts are required. A server must initially serve the static files; Wave 1 has no service worker.
+## Verification
 
-## Testing
+Vitest covers every plant, upgrade, mutation, queue order, score/heat tier, overload, conflict, seeded transition, safe dense chain, economy, migration and IndexedDB roundtrip. A property-style suite saves/decodes every transition in 60 varied researched runs. Playback tests reconstruct exact boards across 40 complete games. Controller tests cover saving before animation, ordered writes, skip idempotence and unreadable-save protection.
 
-Vitest uses pure state fixtures for abilities and queue order. A dense rose board covers competing triggers and termination. Scripted 25-turn simulations compare complete final states and event logs for determinism. `fake-indexeddb` runs the actual storage adapter, including a mid-run resume and repeated completion saves.
+Six Playwright scenarios run on desktop and portrait Chromium, including a full reward/research/unlocked-content loop and interrupted draft recovery. A Linux GitHub Actions workflow installs Chromium and runs lint, types, unit tests, build, E2E and deterministic simulation. Local macOS Chromium launch restrictions and actual in-app browser verification are recorded separately in [verification.md](verification.md).
 
-Playwright tests desktop Chromium and mobile-sized touch Chromium, including a full 25-action game, a reload, one journal award, settings persistence path, guide, cancellation/confirmation of restart, keyboard modes and layout overflow. Browser visuals are reviewed separately at desktop and portrait sizes. Tests do not introduce a gameplay debug API or bypass real UI actions.
+`npm run simulate` executes an opt-in Vitest harness in `scripts/` using fixed decision-policy RNG, fixed seeds, five strategies, two research profiles and matched single-upgrade ablations. The JSON report is generated separately from normal tests. It can import the same engine without React or a browser.

@@ -1,24 +1,17 @@
 # Roadmap
 
-## Wave 1 — playable core
+## Delivered
 
-Implemented: 6×6 gardens, 25-action runs, six species, dew production, growth, spatial scoring, ordered harvest chains, seed replay, full game loop, local vector artwork, touch/mouse/keyboard controls, pause/restart, settings, field guide, results, personal best, run history, versioned interrupted-run saves and automated engine/storage/browser coverage.
+Wave 1: a deterministic 6×6, 25-turn strategy puzzle with six species, dew, adjacency, FIFO chains, exact forecasts, board-centered biopunk art, local saves and complete run loop.
 
-## Direction pass — game first
+Wave 2: four temporary upgrade drafts, 13 working experiments, persistent reactor heat/compensating overloads, ten contextual traits, unique discovery rewards, Biomass, ten horizontal research nodes, four optional specimens, three protocols, Containment Trial, collection, schema-1 migration, atomic reward ledgers, deterministic simulation and expanded tests/CI.
 
-Locked Variant A: no real-time growth. The existing engine, 25-turn limit, six abilities and version-1 saves are preserved. Implemented a board-centered biopunk chamber, layered local SVG specimens, a game-native start menu, exact confirmable harvest forecasts, numbered targets, causal energy routes, sequential growth/score/combo playback and a collapsible reaction log.
+## Next wave
 
-## Wave 2 — deepen the garden
+1. Human playtests across fresh and established profiles. Verify that pool selection, mutation clues, heat and draft timing are understandable within a short first run. Tune the Volatile protocol's advantage and evaluate utility upgrades with policies/players that actually use their information.
+2. A short optional guided first cultivation, including preserving a Sunflower, releasing a Rose, choosing a draft and comparing cooling against a planned overload. Keep it skippable and turn-based.
+3. Richer trait-specific silhouettes, accessible non-color markers, causal overlays and restrained audio/haptics. Real-device Safari/WebKit and Firefox testing, screen-reader/contrast review and low-end phone profiling.
+4. Multi-tab ownership, validated save export/import, storage-quota recovery, controlled offline/PWA updates and native lifecycle flushing. Then Capacitor/Tauri packaging with safe areas.
+5. Broader late-game research branches and additional constrained layouts only after evidence supports them. Preserve horizontal choices and the productive-engine/harvest tradeoff. Currency currently accumulates after the initial research tree is complete.
 
-1. **Balance through simulation and playtesting.** Measure score distributions, chain frequency and sunflower/clover opportunity costs across many seeds. Adjust base scores and dew yield using real play data. Keep all telemetry opt-in and local by default.
-2. **Teach through play.** Add a short, skippable first garden with a guided rose–mushroom chain. Build on the implemented exact chain forecast and source/target propagation with guided first-run decisions and screen-reader feedback.
-3. **More reasons to return.** Seeded daily experiments, local objectives and distinct starting arrangements. Keep ordinary runs short and every challenge reproducible.
-4. **Accessibility and feedback.** Screen-reader playtesting, contrast review, alternate plant labels, haptics through platform adapters, richer audio and causality overlays. Validate Safari/WebKit, Firefox and real low-end touch devices.
-5. **Resilience.** Multi-tab run ownership, explicit save migrations, export/import with validation, crash-recovery testing and IndexedDB quota handling. Add offline service worker installation with a controlled update flow.
-6. **Distribution.** Capacitor and Tauri wrappers using the existing platform boundary; native safe-area testing, lifecycle save flushing and packaged offline assets.
-
-## Later experiments
-
-Optional run modifiers, more plants with distinct spatial jobs, constrained soil layouts and a sandbox for learning interactions. Prototype one mechanic at a time and preserve the central tradeoff: harvesting scores points but takes apart the garden's productive engine.
-
-No backend, monetization, asynchronous multiplayer or account system is required for these next steps.
+No backend, monetization, accounts, daily requirements or real-time growth is needed for these improvements.

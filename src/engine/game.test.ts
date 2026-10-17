@@ -227,7 +227,7 @@ describe("resolution and scoring", () => {
     );
     expect(r.events.some((e) => e.type === "safety")).toBe(false);
     expect(r.state.board.every((p) => p === null)).toBe(true);
-    expect(MAX_EVENTS).toBe(256);
+    expect(MAX_EVENTS).toBe(1024);
   });
   it("does not mutate input state", () => {
     const s = createRun(12);
@@ -269,7 +269,8 @@ describe("resolution and scoring", () => {
   });
   it("ends exactly on turn 25 without passive final harvest, and rejects further actions", () => {
     let s = createRun(88);
-    for (let i = 0; i < 25; i++) s = resolveAction(s, legalActions(s)[0]).state;
+    while (s.status === "playing")
+      s = resolveAction(s, legalActions(s)[0]).state;
     expect(s.turn).toBe(25);
     expect(s.status).toBe("finished");
     expect(legalActions(s)).toEqual([]);
