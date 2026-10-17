@@ -3,7 +3,7 @@
 - Lint, TypeScript, 79 Vitest tests and production build pass locally.
 - Deterministic simulation: 1,304 complete games; 660 survey/challenge games complete without truncation, 624 matched upgrade ablations and a 20-run persistent research campaign. [Report](balance.md).
 - Standalone Playwright: all 12 desktop/portrait cases attempted; Chromium fails before page load under the local macOS sandbox (`MachPortRendezvousServer: Permission denied`). These are environment launch failures, not passed browser tests.
-- Linux GitHub Actions workflow added for lint/types/unit/build/12 browser scenarios/simulation. Remote result is recorded below after execution.
+- [Linux CI passed](https://github.com/iLoopak/ChainGarden/actions/runs/38999384431): lint, types, 79 unit tests, build, all 12 desktop/portrait E2E scenarios (20.3 seconds) and the 1,304-game simulation.
 
 Actual in-app Chromium UI verification (ordinary rendered controls, no injected gameplay/save API):
 
@@ -15,7 +15,7 @@ Actual in-app Chromium UI verification (ordinary rendered controls, no injected 
 - Purchased the tenth node and started Symbiotic Growth. A Sunflower harvest relayed growth from C2 to D2 through Clover; the distant Wildflower reached stage 3. Cooling Tissue and Wandering Roots effects/reveals were recorded.
 - Screenshot evidence is local under `output/playwright/wave2-*.jpg`; these generated images are ignored by Git.
 
-Remaining validation: remote CI status, real Safari/WebKit/Firefox and physical low-end devices; no multi-tab guarantee.
+Responsive checks passed at widths 320, 390, 768 and 1,280 with no horizontal overflow; no captured browser runtime errors. Remaining validation: real Safari/WebKit/Firefox and physical low-end devices; no multi-tab guarantee.
 
 ---
 
