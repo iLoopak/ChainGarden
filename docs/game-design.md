@@ -1,78 +1,74 @@
-# Chain Garden — Wave 1 design
+# Chain Garden — Wave 2 rules
 
-## Intent
+## Direction
 
-Variant A is locked: a tactical turn-based garden inside a living, experimental biopunk greenhouse. The game waits for the player; no clock, idle production or background automation advances the simulation. A run takes 25 deliberate actions, ideally 3–5 minutes. The tension is between keeping productive plants and collecting their value. A sunflower or clover can be worth more alive; a rose turns that investment into a cascade.
+A tactical, turn-based biopunk garden. The matrix is the main play surface. Nothing advances while the player considers a move. The core remains plant → grow → combine → harvest → chain → adapt. A run has 25 actions; four intervening upgrade decisions spend no turns. Keeping productive tissue alive competes with collecting points and controlling heat.
 
-The board is the centerpiece. A compact cultivation tray uses forest charcoal, moss, warm stone and high-contrast botanical light. Amber pollen, lime scoring nodes, coral rose tissue and orchid spores identify roles; light is strongest when an actual event triggers. The start menu sits inside the matrix rather than beside a decorative marketing board. Every species has an original local SVG silhouette. Growth dots, explicit labels and descriptions supplement color. No emoji plant art or remotely loaded visual assets.
+## Starting a cultivation
 
-## Board and initial state
+Choose Standard Cultivation, or a researched protocol. The seed pool always contains Sunflower, Rose, Clover and Wildflower. Add zero, one or two researched specimens: Mushroom, Cactus, Moonflower or Briar. Every offer is uniform with replacement across this selected pool. Duplicates are intentional. Optional species increase tactical variety while reducing the frequency of each existing species.
 
-A 6×6 orthogonal grid. Coordinates are A–F, 1–6. New runs begin with a stage-2 sunflower at C3, a stage-1 rose at C4 and a stage-2 clover at D4. Everything else is empty. Initial score and dew are zero. The opening makes preserving or harvesting an engine meaningful immediately without awarding free points.
+Standard starts with C3 Sunflower stage 2, C4 Rose stage 1, D4 Clover stage 2, zero dew and zero heat. Volatile Experiment adds D3 Rose stage 2, starts at 30 heat and adds 2 heat to every harvest. Symbiotic Growth adds B3 Clover stage 2 and C2 Clover stage 1; directed growth reaching a Clover relays to its neighbors once per plant per action. Containment Trial seals A1/F1/A6/F6 and starts at 45 heat, overriding the protocol's starting heat. Its optional objective is 900 points and at least one overload; success adds 6 Biomass. Failure still completes and earns normal rewards.
 
-A seeded 32-bit linear congruential generator supplies three independent plant offers, drawn uniformly with replacement. Duplicate choices are intentional variance. The RNG state is saved and advanced only when drawing offers. A replay seed reproduces the initial board and offers; the same actions reproduce every subsequent state and event. Run IDs are independent of seeds so replaying is a new journal entry.
+The seed, ordered pool, research snapshot, protocol, challenge, two RNG states and chosen actions determine the run. Seeds use a 32-bit LCG; a separate stream supplies upgrade drafts. Looking at a forecast or scanner never consumes randomness. Replays preserve the original research eligibility, protocol and ordered seed pool, even after further research. First-discovery presentation/rewards reflect the player's current collection.
 
-## An action costs exactly one turn
+## Exact action order
 
-1. Choose one offered seed and an empty plot, or select a plant to harvest at any growth stage, inspect the exact reaction forecast, then confirm **Release reaction**. Selection and cancellation do not spend a turn. Seeds cost no currency. An occupied plot in Plant mode opens inspection; it never silently harvests.
-2. Planting creates stage 0. If any dew is banked, automatically spend exactly 1 to start at stage 1. A root harvest removes and scores the chosen plant at its current stage, then queues its ability.
-3. All plants still on the board grow by 1, capped at stage 3. A new planted seed participates; a harvested root does not.
-4. Every now-ripe sunflower banks 1 dew, capped at 9 total. No dew over the cap is earned. Neighbors grown to ripe later by abilities begin producing on the next action.
-5. Resolve queued abilities and their child events breadth first. Each ability visits neighbors north, east, south, west.
-6. Record the score, stats and turn. If fewer than 25 turns have been used, replace **all three** offers, regardless of which action was chosen. Unused seeds are discarded for free.
-7. After action 25 the run finishes. Resolve that entire action and chain first. There is no bonus harvest of plants left standing. The last visible seed offers are inactive.
+1. If a draft is pending, choose one of its three upgrades before another action. Installation costs no turn and does not grow plants, refresh seeds or advance the seed RNG.
+2. Otherwise plant an offered seed in an empty, unsealed plot; harvest any existing plant; use a researched-in-run pruning charge; or vent for 3 dew when heat is above zero. These consume one turn. An installed Seed Recycler can instead exchange one offer for 1 dew once per run, spending no turn and causing no growth; the replacement can match the original.
+3. A planted seed starts at stage 0. Automatically spend 1 dew if available for +1 stage. Accelerated Cultivation adds another stage for Sunflower/Wildflower. A charged planting starts ripe instead; it still spends one dew if available. The selected harvest scores and removes its plant before seasonal growth. Pruning removes without score or harvest effects and cools 8. Venting cools 15.
+4. Every surviving plant, including a newly planted seed, grows by 1 up to ripe stage 3. Each now-ripe Sunflower banks 1 dew, capped at 9.
+5. Resolve queued abilities in FIFO order, visiting north/east/south/west. Each event stores the expected plant ID. Activations grow a young plant by 1 and harvest it if now ripe. A plant can activate and harvest at most once per action. Newborns cannot chain-harvest in their birth action. Ordinary directed growth does not harvest.
+6. Critical Bloom may remove one surviving neighbor of the action's root. Resolve contextual mutations in row-major and registry order, at most one new contextual trait per plant. Cross-Pollination then transfers at most one trait and adds 4 heat. Traits persist until their plant is removed. Normal capacity is one; Adaptive Tissue raises it to two.
+7. If heat reached 100 at any point, resolve one latched overload after the chain and mutations. Later cooling does not cancel it. Complete all effects of action 25 before finishing; there is no automatic final harvest.
+8. After a non-final turn, replace all three seed offers. After turns 5, 10, 15 and 20, generate three eligible, unique upgrade choices and save them. The garden waits for the choice. Offers and drafts are independent RNG streams.
 
-The current stage and seed cost are always predictable. A root harvest preview includes current clover and cactus bonuses; chain harvests reflect the actual board when their event resolves. Future adjacent harvests can remove scoring auras or create empty cactus neighbors.
+One-shot rewards and the full resolved state are committed together before visual playback. Skipping visuals changes no rules. Reload restores the resolved garden and a pending draft without replaying rewards.
 
-## Plants
+## Specimens
 
-All adjacency is orthogonal. Board edges are not empty tiles.
+All normal adjacency is orthogonal; board edges and sealed plots never count as empty soil. Plant artwork is local SVG, with distinct silhouettes, growth nodes and trait-colored tissue marks.
 
-| Plant      | Base score | Exact ability                                                                                                                                                                                                                                                                                    | Strategic role                                                                                                                                           |
-| ---------- | ---------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sunflower  |          8 | Ripe: bank 1 dew each seasonal growth phase. Harvest: bank 2 dew, then grow all existing neighbors by 1.                                                                                                                                                                                         | Persistent growth economy; harvesting sacrifices future production.                                                                                      |
-| Rose       |         12 | Harvest: enqueue activation for every current neighbor. Activation grows it by 1 if young; if ripe afterward, enqueue its harvest.                                                                                                                                                               | Chain catalyst. A stage-1 neighbor reaches stage 2 seasonally, then ripens from activation.                                                              |
-| Mushroom   |         10 | Harvest: inspect neighbors N/E/S/W before removal; copy the first non-mushroom's harvest ability. With no compatible neighbor, only score. Cactus copy applies its empty-space scoring bonus to the mushroom's own base and stage. Passive sunflower production and clover auras are not copied. | Position-sensitive echo; a copied rose can extend a chain.                                                                                               |
-| Cactus     |         14 | Its harvest scores an additional 20% per currently empty adjacent tile. No outgoing growth event.                                                                                                                                                                                                | Spacing and harvest-order puzzle.                                                                                                                        |
-| Clover     |          6 | Ripe: each adjacent harvest gets +25%. Harvest: grow all current neighbors by 1.                                                                                                                                                                                                                 | Scoring engine with an opportunity cost when removed.                                                                                                    |
-| Wildflower |          9 | Harvest: enqueue +1 growth for existing neighbors, then sow one stage-0 wildflower at the first empty N/E/S/W neighbor, if any.                                                                                                                                                                  | Rebuilds production after collection. Newly sown flowers do not receive that harvest's queued growth and cannot chain-harvest during their birth action. |
+| Specimen   | Base | Ability and decision                                                                                                                                                                                    |
+| ---------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sunflower  |    8 | While ripe, +1 dew each seasonal phase. Harvest: +2 dew and grow neighbors. Keep it for production or consume it to accelerate nearby tissue.                                                           |
+| Rose       |   12 | Harvest activates all existing neighbors. Position a catalyst at the intersection of future chains.                                                                                                     |
+| Clover     |    6 | While ripe, adjacent harvests gain +25%. Harvest cools 6 heat and grows neighbors. Cooling sacrifices its aura.                                                                                         |
+| Wildflower |    9 | Harvest grows current neighbors, then sows a stage-0 Wildflower in the first empty neighbor. Queued growth cannot target the newborn's new ID.                                                          |
+| Mushroom   |   10 | Harvest copies the first adjacent non-Mushroom ability N/E/S/W. Its own base/stage score is retained; copying Cactus also applies the space bonus. It never copies passive production or passive auras. |
+| Cactus     |   14 | +20% harvest score per actual adjacent empty plot. Clear neighbors first, or preserve connections.                                                                                                      |
+| Moonflower |    8 | Harvest cools 12 heat and grows neighbors. A cooling reserve consumes a seed-pool slot.                                                                                                                 |
+| Briar      |   15 | Activates like Rose and adds 6 heat through its ability. A stronger catalyst increases overload exposure.                                                                                               |
 
-Growth abilities alone never harvest a ripe plant. Rose activation is the only automatic harvest trigger. Effects captured by the queue carry target plant IDs, so removing/replacing a plant cannot redirect an old event to a new occupant.
+## Scoring and reactor
 
-## Scoring
-
-For each individual harvest:
+At each individual harvest:
 
 ```text
-stage factor = 1 + 0.5 × stage                 // 1, 1.5, 2, 2.5
-chain multiplier = min(3, 1 + 0.25 × depth)   // root depth = 0
-synergy factor = 1 + 0.25 × ripe clover neighbors
-                  + 0.20 × empty neighbors   // cactus or mushroom copying cactus only
-points = floor(base × stage factor × chain multiplier × synergy factor)
+base harvest = floor(specimen base × (1 + .5 × growth)
+                   × min(3, 1 + .25 × depth)
+                   × (1 + .25 × ripe Clover neighbors + .20 × empty Cactus neighbors))
+add 8 per ripe neighboring Symbiotic Crown
+add floor(heat / 25), capped at tier 3, × 3 × depth
+add installed upgrade bonuses
 ```
 
-Clover and space bonuses add within the synergy factor. Round down once per harvested plant. Chain depth counts ability propagation, not total plants collected. A line of three ripe roses harvested from one end yields 30 + 37 + 45 = 112. Chain size counts all harvested plants including the root; the summary records best chain size, best turn score, harvested species and dew actually banked.
+Root depth is zero. Every third harvest with Resonance Bloom adds 10. Critical Bloom adds 12 at depth 2+. Volatile Sap adds `floor(heat / 20) × min(3, depth)` on chain harvests. Heat is sampled before that harvest's heat increase. Clover auras and empty-space counts use the actual board at that event, so harvest order matters. An unmodified line of three ripe Roses still scores 30 + 37 + 45 = 112 at low heat.
 
-There is no monetary reward, unlock or external economy. Personal best updates only after a completed run. The score bar shows the stored best completed run independently from the current score.
+Each harvest adds `2 + 3 × depth` heat; Volatile protocol and Volatile Sap each add 2 more. Briar, traits and Critical Bloom add the explicitly described extra heat. Heat clamps to 0–100. Stable is 0–24, Reactive 25–49, Volatile 50–74, Critical 75–99; higher tiers increase chain scoring and unlock contextual mutations. Cooling never falls below zero.
 
-## Chain termination and fairness
+An overload removes at most three surviving plants from `[root, north, east, south, west]`, skipping empty plots. No harvest effects or chains arise from destruction. Gain 20 + 5 points per destroyed plant, up to 3 dew and two charged plantings (bank capped at four). Heat resets to 35. It can clear an inconvenient footprint or spare a region already emptied by a successful chain. The forecast includes exact heat, collateral cells and overload compensation; the log records causes.
 
-The explicit queue is FIFO. Each plant ID may activate and harvest at most once per action. Harvest always removes its plant. Mushrooms never copy mushrooms. New wildflowers cannot be chain-harvested in the action where they were born. At most 256 pending events execute; a visible safety event reports truncation if ever reached. A fully ripe 36-rose board resolves completely below the limit. Repeated triggers skip already processed targets.
+## Progression and discoveries
 
-An empty board has 108 legal plant actions. A full board has 36 legal harvest actions. There is always an action before turn 25. No automatic loss condition or hidden deadlock exists.
+See [progression.md](progression.md) for all 13 upgrades, ten research nodes, ten trait contexts and the economy. Upgrades have a single-copy cap. Adaptive Tissue and Cross-Pollination conflict in both directions. All other combinations are allowed and bounded. Research is horizontal: no permanent global score increases.
 
-## Feedback and accessibility
+A first trait discovery immediately adds its catalogue entry and 3 Biomass, once for the profile. Unknown entries expose a clue and silhouette, with their precise prerequisite/effect hidden. The first reveal shows the actual plant, trait, effect and reward. Ordinary traits do not mutate merely from elapsed wall-clock time.
 
-Logic resolves immediately, then presentation replays the actual event queue: planting, seasonal growth, resources, copying, directed growth, activations, harvests and spreading. Each event carries its specimen snapshot so stages and replacements appear exactly when they happen. Seasonal growth shares one visual frame; directed growth remains sequential. Score and combo counters rise with individual harvests rather than jumping to the final total before the chain begins. Controls lock during playback to prevent duplicate actions. The journal preserves the turn's causal sequence. Directed SVG energy links show the actual event source and target. Numbered forecast targets, harvest release ghosts, point bursts, a temporary mushroom echo reveal, charged growth nodes and selected seed checks explain state without relying solely on color. No visual mutation changes a plant’s rules: the echo reveal means Mushroom is copying an ability for this harvest only.
+## Termination, controls and accessibility
 
-Reduced motion removes idle movement and transition timing; event details remain available. Native modal dialogs trap focus and support Escape. Board and seed buttons have descriptive accessible labels. Sound is optional and off by default. No timers pressure the player.
+The resolver uses a FIFO queue, unique plant IDs, per-action activation/harvest/relay guards, single-use repeat effects and a final 1,024 pending-event bound. A diagnostic event reports truncation. Dense traited-chain tests and the simulation survey verify ordinary content stays below it. Empty gardens can plant; full gardens can harvest; drafts have legal choices; turn 25 has a clear completed state.
 
-## Deliberate Wave 1 boundaries
+Touch/mouse: select a seed then an empty plot. Select any plant, inspect its full reaction forecast, then confirm. H selects harvesting; 1–3 select seeds; P pauses; Escape cancels a forecast before pausing. Utility buttons explain their turn/dew costs. Pruning requires a second explicit removal confirmation. The guide, lab, setup and drafts use keyboard-accessible dialogs. Reduced motion removes idle and transformation animation; Skip playback immediately presents the authoritative outcome. Sound is optional and off by default.
 
-One mode, one board size, six species, no consumable purchases, no undo, no backend. Balance is initial design rather than statistically tuned. Random offers are not guaranteed unique or equally valuable. Progression, challenges and broader device testing belong in Wave 2.
-
-## Board-first decisions
-
-The HUD shows score, remaining turns, spent turns and dew next to the matrix. Three specimen cards expose roles and abilities. Selecting a plant in either mode invokes the same pure resolver as committing it, without advancing state: the forecast lists the full score, harvest count, peak scoring depth and ordered targets. Forecast routes omit passive global growth so they show causal relationships rather than connecting every plot. On portrait screens a compact confirmation tray keeps the commit button accessible without covering the main board at standard phone heights.
-
-The turn phase strip is presentation only. Act → Grow → React → Your turn never runs until a legal action is committed. Screen space previously spent on editorial headings and an advice column is assigned to the matrix. The journal is collapsible and secondary to direct board feedback.
+Portrait layouts keep the matrix and three seed choices together at common phone heights; long explanations, utilities, collection and research scroll below. There is no timer, energy system, daily requirement, account or remote dependency.

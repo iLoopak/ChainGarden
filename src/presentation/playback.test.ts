@@ -5,7 +5,7 @@ describe("event-driven presentation", () => {
   it("reconstructs exact growth, harvest and spread states without using the final board", () => {
     for (let seed = 1; seed <= 40; seed++) {
       let state = createRun(seed);
-      for (let turn = 0; turn < 25; turn++) {
+      for (let turn = 0; state.status === "playing"; turn++) {
         const legal = legalActions(state),
           result = resolveAction(
             state,

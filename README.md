@@ -1,75 +1,62 @@
 # Chain Garden
 
-Repository: [iLoopak/ChainGarden](https://github.com/iLoopak/ChainGarden).
-
-A turn-based botanical strategy puzzle inside an experimental biopunk greenhouse. Grow a living engine, then choose when to take it apart. A complete, browser-local Wave 1 built with React, TypeScript and Vite. No account, backend, external imagery, fonts or API keys.
+[Canonical repository](https://github.com/iLoopak/ChainGarden). A playable, turn-based botanical strategy roguelite inside a biopunk greenhouse. Grow a production engine, choose four in-run experiments, then decide when to take the garden apart. React + TypeScript + Vite; local SVG/CSS, IndexedDB, no account, backend or external asset services.
 
 ## Play locally
 
-Requires Node.js 22.12+ and npm. This delivery was verified with Node.js 26.3.0.
+Node.js 22.12+ and npm:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite. For a production preview:
+Open Vite's URL. Production: `npm run build`, then `npm run preview`. When filesystem notifications are unavailable, use `CHAIN_GARDEN_POLLING=1 npm run dev`.
 
-```sh
-npm run build
-npm run preview
-```
+## Play
 
-## How to play
+The garden has **36 plots and 25 turns**. Choose one of three seeds and tap an empty plot, or select an existing plant, inspect the exact chain forecast and confirm its harvest. Survivors grow one stage afterward, then queued effects resolve. Every turn replaces all three seed choices. There is no automatic final harvest.
 
-Each garden has **36 plots and 25 turns**. Three established plants give you a starting engine. Choose one of three seeds and tap an empty plot, or choose **Harvest**, select an existing plant and confirm its reaction forecast. Either action consumes one turn and replaces all three offers. There is no wait action or seed inventory.
+Ripe Sunflowers make dew for faster planting. Roses activate neighboring tissue. Clovers improve neighboring harvests and can cool the reactor. Wildflowers sow a new engine. Research Mushroom, Cactus, Moonflower and Briar, then add up to two to your starting pool. Optional specimens, three distinct protocols and a sealed-corner challenge change the decisions available.
 
-All surviving plants grow one stage after the action. Three stages means ripe. Harvesting early is legal, but ripe plants score more. Ripe sunflowers make dew; the next planting automatically spends one dew for a growth boost. A harvested rose activates its orthogonal neighbors, potentially starting a chain. Keep clovers for their scoring aura, use mushrooms to echo abilities, leave cacti breathing room, and let wildflowers replant the future.
+After turns **5 / 10 / 15 / 20**, choose one of three temporary upgrades. There are 13 experiments, including growth relays, repeated abilities, trait transfer, seed scanning/recycling and volatile chain bonuses. Every upgrade caps at one copy; incompatible choices never share a build.
 
-The garden does **not** auto-harvest after turn 25. Plan your last few turns.
+Chains generate persistent reactor heat. Higher tiers strengthen deep harvests and enable mutations. At 100, one deterministic overload removes up to three nearby plants, then gives points, dew and two ripe-start plantings. Cooling can protect a valuable region; intentional overload can help rebuild it. Forecasts include exact outcome and risk.
 
-- **Touch/mouse:** select seed, then empty plot; switch to Harvest, select a plant and confirm **Release reaction**. Selecting an occupied plot in either mode shows the exact full-chain forecast, numbered targets and expected total score. Canceling the forecast costs nothing.
-- **Keyboard:** 1–3 select seeds; H selects harvest; P pauses; Escape cancels a selected forecast or opens pause. Tab / Shift+Tab move between controls, Enter / Space activate them.
-- **Field guide:** all exact abilities and scoring rules, available from the header.
-- **Pause:** sound, reduced motion, restart confirmation, or save and return home.
-- **Results:** score, harvest count, best chain, best turn, personal best, new seed or replay the same seed.
+Ten contextual mutations create persistent traits on individual plants. First discoveries earn **3 Biomass** once. Completed gardens earn at least 8 Biomass; spend it across ten research nodes in the Lab. Research adds choices instead of permanent global score boosts. The collection records specimens, secret trait discoveries, learned synergies, powerups, reactor rules and lifetime records.
 
-## Verification
+- **Touch/mouse:** choose seed → empty plot; select plant → forecast → Release reaction. Selection/cancellation is free. Utility buttons show costs. Pruning asks you to select and confirm a plant.
+- **Keyboard:** 1–3 choose seeds, H harvest mode, P pause; Escape cancels a forecast or opens pause. Tab / Shift+Tab / Enter navigate.
+- **Pause:** optional sound, reduced motion, restart or save/home. **Skip playback** settles visual effects immediately without changing the outcome.
+- **Results:** score, best chain/turn, mutations, overloads, Biomass, research access and seed replay. Before the next run, choose protocol and optional specimens.
+
+## Checks
 
 ```sh
 npm run lint
 npm run typecheck
 npm test
+npm run build
 npx playwright install chromium
 npm run test:e2e
-npm run build
+npm run simulate
 ```
 
-Vitest exercises all six abilities, scoring, breadth-first chain ordering, repeated triggers, dense chains, seeded determinism, legality, the 25-turn boundary, IndexedDB roundtrips and idempotent completion. Playwright runs complete games, reload recovery, guide, settings, restart, keyboard controls and overflow checks on desktop Chromium and a touch-enabled iPhone-sized Chromium viewport. Browser tests launch their own Vite server when needed. Safari/WebKit and native wrappers are not part of Wave 1 validation.
+The simulation command regenerates `docs/simulation-results.json` from fixed seeds. It reports policy outcomes and potential imbalances, not whether humans find the game fun. GitHub Actions runs all checks with desktop/portrait Chromium. See [verification](docs/verification.md) for executed results and local environment limits.
 
-See [the verification record](docs/verification.md) for executed checks, browser evidence and environment limits.
+## Source map
 
-## Project map
+- `src/engine/` — pure deterministic rules, two RNG streams, registries, balance constants and tests.
+- `src/controller.ts` — external store, authoritative transitions, serialized saves and skippable playback.
+- `src/presentation/` — ordered event frames and exact board reconstruction.
+- `src/persistence/` — schema-2 migration, validated research/reward ledgers, atomic IndexedDB.
+- `src/components/` — SVG plants, matrix, decisions, research/protocol/draft/collection views.
+- `scripts/` — deterministic survey and upgrade ablations; `tests/e2e/` — real UI flows.
 
-- `src/engine/` — pure deterministic rules, seeded RNG, plant definitions and tests.
-- `src/controller.ts` — action orchestration, save ordering and sequential score/combo playback.
-- `src/presentation/` — event-to-frame playback and board reconstruction, independent of React.
-- `src/components/` — local vector art and UI primitives.
-- `src/App.tsx`, `src/styles.css` — responsive views, accessible dialogs and CSS motion.
-- `src/persistence/` — versioned, validated IndexedDB save envelope and tests.
-- `src/platform/` — browser entropy, run identifiers and optional synthesized sound.
-- `tests/e2e/` — critical browser flows.
+Read [game rules](docs/game-design.md), [progression](docs/progression.md), [balance](docs/balance.md), [architecture](docs/architecture.md), [art direction](docs/art-direction.md) and [roadmap](docs/roadmap.md).
 
-Read [the art direction](docs/art-direction.md), [the game design](docs/game-design.md), [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md).
+## Saves and scope
 
-## Local data and platform scope
+Progress belongs to the browser origin. Schema-1 gardens and histories migrate automatically; existing six-species access is preserved and historical completions receive a one-time Biomass credit. A full resolved snapshot and reward IDs are saved together before animations. Unknown/damaged saves are preserved and a visible notice explains in-memory fallback. The visible journal keeps 100 summaries; lifetime reward IDs prevent duplicate awards beyond that limit.
 
-Progress, settings, the personal best and up to 100 completed run summaries live in IndexedDB for the current browser origin. Each resolved turn is persisted as one atomic record before visual playback; restoring a garden cannot repeat its rewards. Private browsing, browser cleanup or changing the origin can remove or isolate saves. Storage failures display an in-app notice and allow in-memory play. Wave 1 supports one active tab per local profile; simultaneous tabs are not synchronized.
-
-All visuals and sound are generated locally. The app respects system reduced motion as well as its own setting. It has relative build asset URLs for future Capacitor/Tauri adapters. It currently requires serving the static build over HTTP; installable/offline PWA support and native packaging are future work.
-
-## Direction lock
-
-Variant A: a tactical, turn-based garden. Nothing advances while the player considers a move. The cultivation matrix is the primary game surface; the opening menu lives inside it. The dark greenhouse, moss tray, layered specimens and restrained reactive light support readable decisions. This remains a 25-turn puzzle, with the same six abilities, seeded rules and version-1 saves. No real-time growth or idle economy is introduced.
-
-For reliable hot reload in environments without filesystem notifications, use `CHAIN_GARDEN_POLLING=1 npm run dev`.
+One active writing tab is supported. No cloud sync, export/import, offline service worker, localization or native wrapper is shipped yet. Clearing browser storage removes local progress. Capacitor/Tauri remain future adapters around the independent engine/storage boundary. There is no login reward, energy system, waiting timer or paid boost.

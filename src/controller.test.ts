@@ -88,7 +88,7 @@ describe("controller orchestration", () => {
     controller.play({ type: "plant", index: 0, offer: 0 });
     await vi.runAllTimersAsync();
     expect(controller.run?.turn).toBe(1);
-    expect(controller.getSnapshot().error).toContain("could not save");
+    expect(controller.getSnapshot().error).toContain("kept untouched");
   });
 });
 
@@ -129,5 +129,43 @@ describe("turn-based direction lock", () => {
       lastPoints: 73,
     });
     expect(storage.data.current?.score).toBe(73);
+  });
+});
+
+describe("progression recovery and playback controls", () => {
+  it("skips to the authoritative state once and cannot duplicate points or rewards", async () => {
+    const storage = new MemoryStorage(),
+      controller = new GameController(storage);
+    await controller.initialize();
+    controller.start(41);
+    controller.play({ type: "plant", index: 0, offer: 0 });
+    controller.skipPlayback();
+    controller.play({ type: "harvest", index: 20 });
+    const resolved = structuredClone(controller.run);
+    controller.skipPlayback();
+    controller.skipPlayback();
+    await vi.runAllTimersAsync();
+    expect(controller.run).toEqual(resolved);
+    expect(controller.getSnapshot().displayScore).toBe(resolved!.score);
+    expect(controller.getSnapshot().displayHeat).toBe(resolved!.instability);
+    expect(controller.getSnapshot().board).toEqual(resolved!.board);
+    expect(controller.getSnapshot().busy).toBe(false);
+    expect(storage.data.current).toEqual(resolved);
+  });
+  it("keeps an unreadable journal untouched while allowing in-memory play", async () => {
+    const save = vi.fn(async () => {});
+    const controller = new GameController({
+      load: async () => {
+        throw new Error("Unknown schema");
+      },
+      save,
+    });
+    await controller.initialize();
+    controller.start(1);
+    controller.play({ type: "plant", index: 0, offer: 0 });
+    controller.skipPlayback();
+    await vi.runAllTimersAsync();
+    expect(controller.run?.turn).toBe(1);
+    expect(save).not.toHaveBeenCalled();
   });
 });

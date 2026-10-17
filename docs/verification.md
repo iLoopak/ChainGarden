@@ -1,3 +1,24 @@
+# Wave 2 verification — 17 October 2026
+
+- Lint, TypeScript, 79 Vitest tests and production build pass locally.
+- Deterministic simulation: 1,304 complete games; 660 survey/challenge games complete without truncation, 624 matched upgrade ablations and a 20-run persistent research campaign. [Report](balance.md).
+- Standalone Playwright: all 12 desktop/portrait cases attempted; Chromium fails before page load under the local macOS sandbox (`MachPortRendezvousServer: Permission denied`). These are environment launch failures, not passed browser tests.
+- Linux GitHub Actions workflow added for lint/types/unit/build/12 browser scenarios/simulation. Remote result is recorded below after execution.
+
+Actual in-app Chromium UI verification (ordinary rendered controls, no injected gameplay/save API):
+
+- Migrated a real schema-1 garden at turn 10; kept board/RNG/settings/history. Legacy research/currency credited once. Five first mutations earned 15 Biomass.
+- Exact mutated-chain forecast 207 matched the resulting score. Reload at the turn-15 draft restored identical three choices; installation left the turn at 15. Completed the interrupted garden at 426 points.
+- Bought six research nodes for exactly 66 Biomass; balance 71 → 5. Reload preserved eight owned nodes and that balance.
+- Started Volatile Experiment with Moonflower/Briar: heat 30, extra Rose, selected pool. Portrait 390×844 matrix and three seed choices fit together. Eight-plant reaction forecast 622 matched execution; overload reset to 35 and granted two charged plantings. Completed at 1,309 points with two overloads, 22 Biomass including discoveries.
+- Bought Containment Trial; observed four sealed plots and starting heat 45. Completed at 2,197 points, chain 19, one overload and challenge bonus +6 included in 22 Biomass. The final 900-point target is satisfied.
+- Purchased the tenth node and started Symbiotic Growth. A Sunflower harvest relayed growth from C2 to D2 through Clover; the distant Wildflower reached stage 3. Cooling Tissue and Wandering Roots effects/reveals were recorded.
+- Screenshot evidence is local under `output/playwright/wave2-*.jpg`; these generated images are ignored by Git.
+
+Remaining validation: remote CI status, real Safari/WebKit/Firefox and physical low-end devices; no multi-tab guarantee.
+
+---
+
 # Verification — 16 October 2026
 
 ## Direction lock and biopunk pass

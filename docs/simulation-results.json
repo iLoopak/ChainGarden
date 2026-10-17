@@ -1,0 +1,844 @@
+{
+  "method": "60 seeds × five strategies × two research profiles plus 60 Containment Trials; 24 matched seeds per single-upgrade ablation. Fixed policy heuristics, no lookahead search. Ablations grant the chosen upgrade at turn 0 and disable drafts in both arms; they measure policy interaction, not causal player value. Survey choices are observational.",
+  "constants": {
+    "turns": 25,
+    "maxEvents": 1024,
+    "maxDew": 9,
+    "milestones": [
+      5,
+      10,
+      15,
+      20
+    ],
+    "heatBase": 2,
+    "heatDepth": 3,
+    "tierDepthPoints": 3,
+    "volatileDivisor": 20,
+    "volatileDepthCap": 3,
+    "volatileHeat": 2,
+    "overloadReset": 35,
+    "overloadDamage": 3,
+    "overloadScore": 20,
+    "overloadPerPlant": 5,
+    "overloadDew": 3,
+    "overloadSeeds": 2,
+    "stabilizeCost": 3,
+    "stabilizeCooling": 15,
+    "pruneCooling": 8,
+    "discoveryBiomass": 3,
+    "completionBiomass": 8,
+    "scoreStep": 150,
+    "scoreBiomassCap": 6,
+    "challengeBiomass": 6,
+    "challengeTarget": 900
+  },
+  "survey": {
+    "starter-random": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 0,
+        "p10": 40,
+        "median": 130,
+        "p90": 246,
+        "max": 339,
+        "mean": 136.8
+      },
+      "mutationEvents": 20.67,
+      "mutationTypes": 3.43,
+      "overloads": 0,
+      "peakHeat": 17.62,
+      "biomassFreshProfile": 19.03,
+      "heatByTurn": [
+        0.1,
+        0.13,
+        0.13,
+        0.35,
+        0.72,
+        0.82,
+        1.05,
+        1.28,
+        1.8,
+        2.63,
+        2.63,
+        3.67,
+        4.2,
+        4.45,
+        5.52,
+        6.03,
+        5.85,
+        6.55,
+        7.57,
+        8.22,
+        8.08,
+        8.88,
+        9.93,
+        10.73,
+        12.43
+      ],
+      "safetyTruncations": 0
+    },
+    "starter-conservative": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 445,
+        "p10": 587,
+        "median": 650,
+        "p90": 791,
+        "max": 815,
+        "mean": 660.57
+      },
+      "mutationEvents": 13.77,
+      "mutationTypes": 3.15,
+      "overloads": 0.02,
+      "peakHeat": 72.15,
+      "biomassFreshProfile": 22.42,
+      "heatByTurn": [
+        0,
+        0,
+        0.27,
+        2.72,
+        3.83,
+        8.52,
+        11.7,
+        15.6,
+        19.48,
+        23.3,
+        25.68,
+        30.98,
+        33.67,
+        34.62,
+        37.33,
+        41.6,
+        45.3,
+        46.55,
+        57.85,
+        56.55,
+        56.33,
+        56.37,
+        55.58,
+        56.15,
+        55.87
+      ],
+      "safetyTruncations": 0
+    },
+    "starter-aggressive": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 532,
+        "p10": 636,
+        "median": 761,
+        "p90": 924,
+        "max": 1053,
+        "mean": 765.55
+      },
+      "mutationEvents": 15.2,
+      "mutationTypes": 3.17,
+      "overloads": 0.68,
+      "peakHeat": 96.37,
+      "biomassFreshProfile": 23.12,
+      "heatByTurn": [
+        0,
+        0,
+        1.6,
+        8.87,
+        11.87,
+        15.82,
+        19.45,
+        26.25,
+        30.72,
+        34.15,
+        36,
+        42.53,
+        46.07,
+        52.12,
+        55.85,
+        58.53,
+        59.4,
+        62.22,
+        63.85,
+        65.3,
+        64.12,
+        63.3,
+        64.72,
+        63.25,
+        65.4
+      ],
+      "safetyTruncations": 0
+    },
+    "starter-mutation": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 479,
+        "p10": 566,
+        "median": 735,
+        "p90": 960,
+        "max": 1027,
+        "mean": 742.17
+      },
+      "mutationEvents": 22.7,
+      "mutationTypes": 3.43,
+      "overloads": 0.77,
+      "peakHeat": 95.55,
+      "biomassFreshProfile": 23.8,
+      "heatByTurn": [
+        0,
+        0,
+        0,
+        0,
+        1.27,
+        2.48,
+        4.43,
+        7.05,
+        8.45,
+        12.32,
+        15.35,
+        15.67,
+        30.68,
+        31.08,
+        36.7,
+        43.08,
+        43.97,
+        45.9,
+        57.55,
+        64.43,
+        65.63,
+        64.5,
+        65.97,
+        64.63,
+        63.63
+      ],
+      "safetyTruncations": 0
+    },
+    "starter-instability": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 532,
+        "p10": 645,
+        "median": 776,
+        "p90": 954,
+        "max": 1053,
+        "mean": 780.6
+      },
+      "mutationEvents": 16.72,
+      "mutationTypes": 3.17,
+      "overloads": 0.78,
+      "peakHeat": 97.62,
+      "biomassFreshProfile": 23.18,
+      "heatByTurn": [
+        0,
+        0,
+        1.6,
+        8.87,
+        11.87,
+        15.87,
+        19.55,
+        26.4,
+        30.92,
+        34.35,
+        36.2,
+        42.77,
+        46.65,
+        52.33,
+        56.4,
+        59.6,
+        61.28,
+        62.87,
+        64.45,
+        63.38,
+        63.3,
+        63.22,
+        65.63,
+        63.92,
+        62.38
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-random": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 15,
+        "p10": 77,
+        "median": 157,
+        "p90": 388,
+        "max": 568,
+        "mean": 186.65
+      },
+      "mutationEvents": 21.4,
+      "mutationTypes": 5,
+      "overloads": 0.02,
+      "peakHeat": 31.33,
+      "biomassFreshProfile": 24.02,
+      "heatByTurn": [
+        0.1,
+        0.13,
+        0.13,
+        0.47,
+        0.87,
+        1.27,
+        1.8,
+        2.53,
+        3.18,
+        4.4,
+        5.38,
+        6.67,
+        7.63,
+        8.9,
+        9.4,
+        10.37,
+        11.17,
+        12.02,
+        13.48,
+        14.92,
+        18.18,
+        20.7,
+        22.8,
+        24.17,
+        26.67
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-conservative": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 537,
+        "p10": 591,
+        "median": 696,
+        "p90": 836,
+        "max": 988,
+        "mean": 705.27
+      },
+      "mutationEvents": 15.9,
+      "mutationTypes": 4.78,
+      "overloads": 0.1,
+      "peakHeat": 64.53,
+      "biomassFreshProfile": 27.6,
+      "heatByTurn": [
+        0,
+        0,
+        0.47,
+        2.08,
+        3.03,
+        8.17,
+        10.07,
+        11.82,
+        17.67,
+        21.3,
+        23.9,
+        27.38,
+        27.92,
+        29.48,
+        32.05,
+        32.52,
+        35.58,
+        40.37,
+        40.33,
+        38.87,
+        36.98,
+        35.95,
+        34.08,
+        33.65,
+        34.77
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-aggressive": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 573,
+        "p10": 663,
+        "median": 812,
+        "p90": 976,
+        "max": 1100,
+        "mean": 812.65
+      },
+      "mutationEvents": 16.22,
+      "mutationTypes": 4.65,
+      "overloads": 0.98,
+      "peakHeat": 99.05,
+      "biomassFreshProfile": 27.87,
+      "heatByTurn": [
+        0,
+        0,
+        1.68,
+        10.4,
+        13.03,
+        17.17,
+        24.5,
+        28.8,
+        34.58,
+        40.28,
+        43.98,
+        48.12,
+        53.13,
+        55,
+        59.42,
+        60.4,
+        59.75,
+        62.08,
+        59.2,
+        59.6,
+        61.87,
+        60.42,
+        57.57,
+        59.4,
+        60.52
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-mutation": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 483,
+        "p10": 603,
+        "median": 768,
+        "p90": 946,
+        "max": 1095,
+        "mean": 773.35
+      },
+      "mutationEvents": 25.3,
+      "mutationTypes": 6.3,
+      "overloads": 0.35,
+      "peakHeat": 70.45,
+      "biomassFreshProfile": 32.75,
+      "heatByTurn": [
+        0,
+        0,
+        0.3,
+        1.77,
+        3.03,
+        5.35,
+        6.65,
+        8.27,
+        9.67,
+        11.32,
+        16.88,
+        19.38,
+        21.93,
+        25.63,
+        27.28,
+        31.12,
+        34.23,
+        36.47,
+        41.47,
+        41.07,
+        40.22,
+        40,
+        42.7,
+        43.28,
+        40.78
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-instability": {
+      "runs": 60,
+      "challengeSuccesses": null,
+      "completion": 60,
+      "score": {
+        "min": 788,
+        "p10": 913,
+        "median": 1074,
+        "p90": 1216,
+        "max": 1332,
+        "mean": 1061.33
+      },
+      "mutationEvents": 13.83,
+      "mutationTypes": 4.42,
+      "overloads": 2.12,
+      "peakHeat": 100,
+      "biomassFreshProfile": 28.17,
+      "heatByTurn": [
+        30,
+        37.82,
+        56.17,
+        62.2,
+        63.75,
+        65.87,
+        60.12,
+        58.63,
+        56.37,
+        53.58,
+        50.13,
+        52.88,
+        52.05,
+        51.18,
+        57.4,
+        53.63,
+        59.52,
+        53.53,
+        53.57,
+        54.3,
+        54.2,
+        60.17,
+        62.57,
+        67.83,
+        68.65
+      ],
+      "safetyTruncations": 0
+    },
+    "researched-containment-aggressive": {
+      "runs": 60,
+      "challengeSuccesses": 31,
+      "completion": 60,
+      "score": {
+        "min": 722,
+        "p10": 787,
+        "median": 912,
+        "p90": 1098,
+        "max": 1295,
+        "mean": 926.08
+      },
+      "mutationEvents": 15.92,
+      "mutationTypes": 5.12,
+      "overloads": 1.7,
+      "peakHeat": 100,
+      "biomassFreshProfile": 32.9,
+      "heatByTurn": [
+        45,
+        45,
+        46.93,
+        58.23,
+        61.97,
+        67.9,
+        68.65,
+        68.75,
+        62.12,
+        56.77,
+        55.97,
+        52.68,
+        52.92,
+        54.55,
+        53.08,
+        55.15,
+        59.95,
+        59.42,
+        61.4,
+        57.1,
+        59.98,
+        60.97,
+        59.28,
+        59.78,
+        58.9
+      ],
+      "safetyTruncations": 0
+    }
+  },
+  "upgradeSelections": {
+    "adaptive": {
+      "picked": 223,
+      "meanScore": 653.22
+    },
+    "resonance": {
+      "picked": 283,
+      "meanScore": 687.15
+    },
+    "replication": {
+      "picked": 279,
+      "meanScore": 672.77
+    },
+    "pruning": {
+      "picked": 234,
+      "meanScore": 635.41
+    },
+    "scanner": {
+      "picked": 271,
+      "meanScore": 613.3
+    },
+    "accelerated": {
+      "picked": 301,
+      "meanScore": 623.59
+    },
+    "recycler": {
+      "picked": 243,
+      "meanScore": 603.71
+    },
+    "critical": {
+      "picked": 95,
+      "meanScore": 796.44
+    },
+    "volatile": {
+      "picked": 84,
+      "meanScore": 817.68
+    },
+    "network": {
+      "picked": 121,
+      "meanScore": 678.26
+    },
+    "neural": {
+      "picked": 98,
+      "meanScore": 651.5
+    },
+    "echo": {
+      "picked": 119,
+      "meanScore": 779.92
+    },
+    "pollination": {
+      "picked": 49,
+      "meanScore": 607.8
+    }
+  },
+  "ablations": {
+    "accelerated": {
+      "with": 814.63,
+      "without": 799.96,
+      "delta": 14.67
+    },
+    "replication": {
+      "with": 836.96,
+      "without": 799.96,
+      "delta": 37
+    },
+    "resonance": {
+      "with": 843.29,
+      "without": 799.96,
+      "delta": 43.33
+    },
+    "scanner": {
+      "with": 799.96,
+      "without": 799.96,
+      "delta": 0
+    },
+    "pruning": {
+      "with": 799.96,
+      "without": 799.96,
+      "delta": 0
+    },
+    "recycler": {
+      "with": 799.96,
+      "without": 799.96,
+      "delta": 0
+    },
+    "adaptive": {
+      "with": 799.38,
+      "without": 799.96,
+      "delta": -0.58
+    },
+    "network": {
+      "with": 795.33,
+      "without": 799.96,
+      "delta": -4.63
+    },
+    "echo": {
+      "with": 816.75,
+      "without": 799.96,
+      "delta": 16.79
+    },
+    "neural": {
+      "with": 806.25,
+      "without": 799.96,
+      "delta": 6.29
+    },
+    "pollination": {
+      "with": 806,
+      "without": 799.96,
+      "delta": 6.04
+    },
+    "volatile": {
+      "with": 859.75,
+      "without": 799.96,
+      "delta": 59.79
+    },
+    "critical": {
+      "with": 842.96,
+      "without": 799.96,
+      "delta": 43
+    }
+  },
+  "campaign": [
+    {
+      "run": 1,
+      "score": 588,
+      "balance": 5,
+      "earned": 21,
+      "unlocks": 2,
+      "bought": [
+        "mycology",
+        "xerophytes"
+      ]
+    },
+    {
+      "run": 2,
+      "score": 815,
+      "balance": 7,
+      "earned": 35,
+      "unlocks": 3,
+      "bought": [
+        "lunar"
+      ]
+    },
+    {
+      "run": 3,
+      "score": 700,
+      "balance": 1,
+      "earned": 51,
+      "unlocks": 5,
+      "bought": [
+        "briar",
+        "engineering"
+      ]
+    },
+    {
+      "run": 4,
+      "score": 642,
+      "balance": 6,
+      "earned": 64,
+      "unlocks": 6,
+      "bought": [
+        "roots"
+      ]
+    },
+    {
+      "run": 5,
+      "score": 868,
+      "balance": 8,
+      "earned": 78,
+      "unlocks": 7,
+      "bought": [
+        "echo"
+      ]
+    },
+    {
+      "run": 6,
+      "score": 881,
+      "balance": 1,
+      "earned": 95,
+      "unlocks": 9,
+      "bought": [
+        "reactor",
+        "symbiosis"
+      ]
+    },
+    {
+      "run": 7,
+      "score": 793,
+      "balance": 2,
+      "earned": 112,
+      "unlocks": 10,
+      "bought": [
+        "containment"
+      ]
+    },
+    {
+      "run": 8,
+      "score": 764,
+      "balance": 16,
+      "earned": 126,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 9,
+      "score": 678,
+      "balance": 29,
+      "earned": 139,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 10,
+      "score": 719,
+      "balance": 42,
+      "earned": 152,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 11,
+      "score": 607,
+      "balance": 61,
+      "earned": 171,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 12,
+      "score": 811,
+      "balance": 75,
+      "earned": 185,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 13,
+      "score": 925,
+      "balance": 90,
+      "earned": 200,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 14,
+      "score": 719,
+      "balance": 103,
+      "earned": 213,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 15,
+      "score": 793,
+      "balance": 117,
+      "earned": 227,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 16,
+      "score": 761,
+      "balance": 131,
+      "earned": 241,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 17,
+      "score": 746,
+      "balance": 144,
+      "earned": 254,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 18,
+      "score": 832,
+      "balance": 158,
+      "earned": 268,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 19,
+      "score": 735,
+      "balance": 171,
+      "earned": 281,
+      "unlocks": 10,
+      "bought": []
+    },
+    {
+      "run": 20,
+      "score": 746,
+      "balance": 184,
+      "earned": 294,
+      "unlocks": 10,
+      "bought": []
+    }
+  ],
+  "totalRuns": 1304
+}

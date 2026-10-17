@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
 import type { ViewState } from "../controller";
-import { comboMultiplier } from "../engine/game";
+import { comboMultiplier, isLegalAction, nextSeed } from "../engine/game";
+import { mutationDefinition, upgradeDefinition } from "../engine/content";
 import { PLANTS } from "../engine/plants";
-import type { GameState, ReactionPreview } from "../engine/types";
+import type { Action, GameState, ReactionPreview } from "../engine/types";
 import { coordinate } from "../presentation/playback";
 import { Icon } from "./Icons";
 import { PlantArt } from "./PlantArt";
@@ -10,13 +11,15 @@ interface Props {
   run: GameState;
   view: ViewState;
   offer: number;
-  mode: "plant" | "harvest";
+  mode: "plant" | "harvest" | "prune";
   inspected: number | null;
   preview: ReactionPreview | null;
-  onMode: (mode: "plant" | "harvest") => void;
+  onMode: (mode: "plant" | "harvest" | "prune") => void;
   onOffer: (offer: number) => void;
   onCancel: () => void;
   onHarvest: () => void;
+  onUtility: (action: Action) => void;
+  onSkip: () => void;
 }
 export function DecisionPanel({
   run,
@@ -29,6 +32,8 @@ export function DecisionPanel({
   onOffer,
   onCancel,
   onHarvest,
+  onUtility,
+  onSkip,
 }: Props) {
   const selected = inspected === null ? null : run.board[inspected];
   const kind = selected?.kind ?? run.offers[offer];
@@ -76,6 +81,9 @@ export function DecisionPanel({
             </span>
             <b>×{comboMultiplier(view.comboDepth).toFixed(2)}</b>
           </div>
+          <button className="text-button" onClick={onSkip}>
+            Skip playback
+          </button>
           <p>{view.active?.text ?? "Settling the growth matrix…"}</p>
           <small>
             {view.active?.source !== undefined
@@ -123,11 +131,33 @@ export function DecisionPanel({
               ))}
             </div>
           )}
+          {mode === "prune" && (
+            <div className="prune-prompt">
+              <h3>Emergency pruning</h3>
+              <p>
+                {run.pruningLeft} uses left. Remove a plant without score or
+                effects. Cool 8 heat. Costs one turn; survivors still grow.
+              </p>
+              {selected ? (
+                <button
+                  className="harvest-confirm"
+                  onClick={() =>
+                    onUtility({ type: "prune", index: inspected! })
+                  }
+                >
+                  Prune {PLANTS[selected.kind].name}
+                </button>
+              ) : (
+                <small>Select a plant to remove.</small>
+              )}
+            </div>
+          )}
           {preview && selected ? (
             <div className="harvest-preview" data-testid="harvest-preview">
               <div className="preview-heading">
                 <span className="eyebrow">
-                  REACTION FORECAST · {coordinate(inspected!)}
+                  REACTION FORECAST · {coordinate(inspected!)} ·{" "}
+                  {PLANTS[selected.kind].name}
                 </span>
                 <button
                   className="preview-close"
@@ -164,6 +194,13 @@ export function DecisionPanel({
                   <span>peak combo</span>
                 </div>
               </div>
+              {!!selected.traits?.length && (
+                <p className="trait-description">
+                  {selected.traits
+                    .map((t) => mutationDefinition(t).name)
+                    .join(" + ")}
+                </p>
+              )}
               <ol className="forecast-sequence">
                 {preview.events
                   .filter((e) => e.type === "harvested")
@@ -183,6 +220,17 @@ export function DecisionPanel({
                   +{preview.chain - 4} further releases
                 </small>
               )}
+              {(preview.events.some((e) => e.type === "overload") ||
+                preview.destroyed.length > 0) && (
+                <p className="forecast-risk">
+                  {preview.events.some((e) => e.type === "overload")
+                    ? "Overload · +2 charged plantings"
+                    : "Collateral reaction"}
+                  {preview.destroyed.length > 0
+                    ? ` · ${preview.destroyed.length} specimens lost`
+                    : ""}
+                </p>
+              )}
               <button
                 className="harvest-confirm"
                 aria-label={`Harvest · ${preview.points} pts`}
@@ -193,7 +241,8 @@ export function DecisionPanel({
                 <strong>+{preview.points}</strong>
               </button>
               <p className="preview-cost">
-                1 turn · survivors grow +1 · dew after: {preview.dewAfter}
+                1 turn · dew after: {preview.dewAfter} · heat after:{" "}
+                {preview.heatAfter}
               </p>
             </div>
           ) : mode === "harvest" ? (
@@ -222,6 +271,64 @@ export function DecisionPanel({
               </div>
             </div>
           )}
+          <div className="run-tools">
+            <button
+              disabled={!isLegalAction(run, { type: "stabilize" })}
+              onClick={() => onUtility({ type: "stabilize" })}
+            >
+              Vent reactor <small>3 dew · 1 turn · −15 heat</small>
+            </button>
+            {run.pruningLeft > 0 && (
+              <button
+                aria-pressed={mode === "prune"}
+                onClick={() => onMode("prune")}
+              >
+                Prune tissue{" "}
+                <small>{run.pruningLeft} uses · 1 turn · −8 heat</small>
+              </button>
+            )}
+            {run.recyclerLeft > 0 && (
+              <div className="recycle-tools">
+                <small>Recycle one seed · 1 dew · no turn</small>
+                {[0, 1, 2].map((i) => (
+                  <button
+                    key={i}
+                    disabled={
+                      !isLegalAction(run, { type: "recycle", offer: i })
+                    }
+                    onClick={() => onUtility({ type: "recycle", offer: i })}
+                  >
+                    Seed {i + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {nextSeed(run) && (
+            <p className="scanner-readout">
+              Scanner · next hand starts with{" "}
+              <strong>{PLANTS[nextSeed(run)!].name}</strong>
+            </p>
+          )}
+          {!!run.upgrades.length && (
+            <details className="active-build">
+              <summary>Active experiments · {run.upgrades.length} / 4</summary>
+              {run.upgrades.map((id) => (
+                <p key={id}>
+                  <strong>{upgradeDefinition(id).name}</strong>
+                  {upgradeDefinition(id).effect}
+                </p>
+              ))}
+            </details>
+          )}
+          <p className="pool-readout" data-testid="seed-pool">
+            Pool · {run.config.pool.map((k) => PLANTS[k].name).join(" / ")}
+          </p>
+          <div className="draft-cadence">
+            {run.turn < 20
+              ? `Next experiment after turn ${[5, 10, 15, 20].find((t) => t > run.turn)}`
+              : "Build complete · plan your final harvests"}
+          </div>
           <div className="action-cost">
             <Icon name="check" size={13} />
             <span>1 action = 1 turn. All three seeds refresh.</span>

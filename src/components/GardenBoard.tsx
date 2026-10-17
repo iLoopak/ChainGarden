@@ -1,12 +1,14 @@
 import type { CSSProperties } from "react";
 import type { GameEvent, Plant, ReactionPreview } from "../engine/types";
+import { mutationDefinition } from "../engine/content";
 import { PLANTS } from "../engine/plants";
 import { coordinate } from "../presentation/playback";
 import { PlantArt } from "./PlantArt";
 import { ReactionTrace } from "./ReactionTrace";
 interface Props {
   board: (Plant | null)[];
-  mode: "plant" | "harvest";
+  mode: "plant" | "harvest" | "prune";
+  blocked: number[];
   busy: boolean;
   inactive: boolean;
   inspected: number | null;
@@ -17,6 +19,7 @@ interface Props {
 }
 export function GardenBoard({
   board,
+  blocked,
   mode,
   busy,
   inactive,
@@ -47,7 +50,10 @@ export function GardenBoard({
         >
           {board.map((plant, index) => {
             const pulse = pulses.find((e) => e.index === index),
-              ghost = pulse?.type === "harvested" ? pulse.plant : null;
+              ghost =
+                pulse?.type === "harvested" || pulse?.type === "destroyed"
+                  ? pulse.plant
+                  : null;
             const piece = plant ?? ghost;
             const predicted = preview?.harvested.indexOf(index) ?? -1;
             const selected = inspected === index;
@@ -57,15 +63,24 @@ export function GardenBoard({
                 data-testid={`tile-${index}`}
                 data-plant={plant?.kind ?? ""}
                 data-growth={plant?.growth ?? ""}
-                className={`garden-tile ${plant ? "has-plant" : "empty-tile"} ${plant?.growth === 3 ? "ripe" : ""} ${selected ? "inspected" : ""} ${predicted >= 0 ? "forecast-harvest" : ""} ${pulse ? `event-${pulse.type}` : ""} ${ghost ? "releasing" : ""}`}
+                data-traits={plant?.traits?.join(" ") ?? ""}
+                className={`garden-tile ${blocked.includes(index) ? "sealed-plot" : ""} ${plant?.traits?.length ? "mutated" : ""} ${preview?.destroyed.includes(index) ? "forecast-destruction" : ""} ${plant ? "has-plant" : "empty-tile"} ${plant?.growth === 3 ? "ripe" : ""} ${selected ? "inspected" : ""} ${predicted >= 0 ? "forecast-harvest" : ""} ${pulse ? `event-${pulse.type}` : ""} ${ghost ? "releasing" : ""}`}
                 style={
                   {
                     "--specimen": PLANTS[piece?.kind ?? "clover"].color,
+                    "--trait": piece?.traits?.length
+                      ? mutationDefinition(piece.traits[0]).color
+                      : "transparent",
                   } as CSSProperties
                 }
-                disabled={inactive || busy || (mode === "harvest" && !plant)}
+                disabled={
+                  inactive ||
+                  busy ||
+                  blocked.includes(index) ||
+                  (mode !== "plant" && !plant)
+                }
                 onClick={() => onTile(index)}
-                aria-label={`${coordinate(index)}: ${plant ? `${PLANTS[plant.kind].name}, growth ${plant.growth} of 3${plant.growth === 3 ? ", ripe" : ""}, select for reaction preview` : "empty, plant selected seed"}`}
+                aria-label={`${coordinate(index)}: ${blocked.includes(index) ? "sealed containment plot" : plant ? `${PLANTS[plant.kind].name}, growth ${plant.growth} of 3${plant.growth === 3 ? ", ripe" : ""}${plant.traits?.length ? `, ${plant.traits.map((t) => mutationDefinition(t).name).join(", ")}` : ""}, select for reaction preview` : "empty, plant selected seed"}`}
                 aria-pressed={selected}
               >
                 <span className="tile-coordinate" aria-hidden="true">
@@ -92,6 +107,11 @@ export function GardenBoard({
                 ) : (
                   <span className="plot-cross" aria-hidden="true">
                     +
+                  </span>
+                )}
+                {!!plant?.traits?.length && (
+                  <span className="trait-mark" aria-hidden="true">
+                    {plant.traits.length === 2 ? "✦✦" : "✦"}
                   </span>
                 )}
                 {predicted >= 0 && (

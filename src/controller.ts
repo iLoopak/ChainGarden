@@ -1,6 +1,18 @@
-import { createRun, resolveAction } from "./engine/game";
-import type { Action, GameEvent, GameState, Plant } from "./engine/types";
-import { emptySave, recordRun } from "./persistence/storage";
+import { createRun, isLegalAction, resolveAction } from "./engine/game";
+import type {
+  Action,
+  GameEvent,
+  GameState,
+  Plant,
+  ResearchId,
+  RunOptions,
+} from "./engine/types";
+import {
+  emptySave,
+  ownedResearch,
+  purchaseResearch,
+  recordRun,
+} from "./persistence/storage";
 import type { Persistence, SaveData, Settings } from "./persistence/storage";
 import { buildPlaybackFrames, presentEvents } from "./presentation/playback";
 import { freshRunId, freshSeed, playNote } from "./platform/browser";
@@ -14,6 +26,7 @@ export interface ViewState {
   grown: number[];
   active: GameEvent | null;
   displayScore: number;
+  displayHeat: number;
   chainCount: number;
   comboDepth: number;
   pulses: GameEvent[];
@@ -32,6 +45,7 @@ export class GameController {
     grown: [],
     active: null,
     displayScore: 0,
+    displayHeat: 0,
     chainCount: 0,
     comboDepth: 0,
     pulses: [],
@@ -39,8 +53,10 @@ export class GameController {
     lastChain: 0,
     error: null,
   };
+  private savingDisabled = false;
   private listeners = new Set<() => void>();
   private writes: Promise<void> = Promise.resolve();
+  private finishPlayback?: () => void;
   private timer?: ReturnType<typeof setTimeout>;
   constructor(private storage: Persistence) {}
   getSnapshot = () => this.view;
@@ -62,15 +78,18 @@ export class GameController {
         data,
         board: data.current?.board ?? [],
         displayScore: data.current?.score ?? 0,
+        displayHeat: data.current?.instability ?? 0,
       });
     } catch (error) {
+      this.savingDisabled = true;
       this.update({
         ready: true,
-        error: `Local save unavailable: ${error instanceof Error ? error.message : "storage is blocked"}. You can still play this session.`,
+        error: `Local save unavailable: ${error instanceof Error ? error.message : "storage is blocked"}. Existing data is kept untouched; this session can still be played in memory.`,
       });
     }
   }
   private persist(data: SaveData) {
+    if (this.savingDisabled) return;
     this.writes = this.writes
       .then(() => this.storage.save(data))
       .catch(() => {
@@ -80,9 +99,18 @@ export class GameController {
         });
       });
   }
-  start(seed = freshSeed()) {
+  start(seed = freshSeed(), options: RunOptions = {}) {
     if (this.timer) clearTimeout(this.timer);
-    const run = createRun(seed, freshRunId());
+    this.finishPlayback = undefined;
+    const owned = ownedResearch(this.view.data);
+    const research = options.research ?? owned;
+    if (research.some((id) => !owned.includes(id)))
+      throw new Error("Research is locked.");
+    const run = createRun(seed, freshRunId(), {
+      ...options,
+      research,
+      knownMutations: this.view.data.profile.discoveries,
+    });
     const data = recordRun(this.view.data, run);
     this.update({
       data,
@@ -93,6 +121,7 @@ export class GameController {
       active: null,
       busy: false,
       displayScore: run.score,
+      displayHeat: run.instability,
       chainCount: 0,
       comboDepth: 0,
       pulses: [],
@@ -100,6 +129,27 @@ export class GameController {
       lastChain: 0,
     });
     this.persist(data);
+  }
+  replay() {
+    const run = this.run;
+    if (run)
+      this.start(run.seed, {
+        research: run.config.research,
+        poolOrder: run.config.pool,
+        specimens: run.config.pool.filter(
+          (k) => !["sunflower", "rose", "clover", "wildflower"].includes(k),
+        ),
+        protocol: run.config.protocol,
+        challenge: run.config.challenge,
+      });
+  }
+  purchase(id: ResearchId) {
+    const data = purchaseResearch(this.view.data, id);
+    this.update({ data });
+    this.persist(data);
+  }
+  skipPlayback() {
+    this.finishPlayback?.();
   }
   resume() {
     if (this.view.data.current) this.update({ screen: "garden" });
@@ -117,7 +167,7 @@ export class GameController {
   }
   play(action: Action) {
     const current = this.view.data.current;
-    if (!current || this.view.busy || current.status === "finished") return;
+    if (!current || this.view.busy || !isLegalAction(current, action)) return;
     const result = resolveAction(current, action),
       data = recordRun(this.view.data, result.state);
     // Save the entire resolved turn before animation. Reload never repeats rewards.
@@ -133,6 +183,7 @@ export class GameController {
       pulses: [],
       active: null,
       displayScore: current.score,
+      displayHeat: current.instability,
       chainCount: 0,
       comboDepth: 0,
       lastPoints: 0,
@@ -144,28 +195,37 @@ export class GameController {
       displayedScore = current.score,
       chainCount = 0,
       comboDepth = 0;
+    const finish = () => {
+      if (this.timer) clearTimeout(this.timer);
+      this.finishPlayback = undefined;
+      this.update({
+        busy: false,
+        board: result.state.board,
+        active: null,
+        pulses: [],
+        grown: [],
+        events: result.events,
+        displayScore: result.state.score,
+        displayHeat: result.state.instability,
+        chainCount: result.chain,
+        comboDepth,
+        lastPoints: result.points,
+        lastChain: result.chain,
+      });
+    };
+    this.finishPlayback = finish;
     const advance = () => {
       const frame = frames[step++];
       if (!frame) {
-        this.update({
-          busy: false,
-          board: result.state.board,
-          active: null,
-          pulses: [],
-          grown: [],
-          events: result.events,
-          displayScore: result.state.score,
-          chainCount: result.chain,
-          comboDepth,
-          lastPoints: result.points,
-          lastChain: result.chain,
-        });
+        finish();
         return;
       }
       board = presentEvents(board, frame.events);
       for (const event of frame.events) {
+        displayedScore += event.points ?? 0;
+        if (event.heat !== undefined)
+          this.view = { ...this.view, displayHeat: event.heat };
         if (event.type === "harvested") {
-          displayedScore += event.points ?? 0;
           chainCount++;
           comboDepth = Math.max(comboDepth, event.depth);
           if (this.view.data.settings.sound) playNote(event.depth);

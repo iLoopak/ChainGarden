@@ -12,8 +12,8 @@ describe("versioned journal", () => {
   it("roundtrips a mid-run snapshot through IndexedDB and resumes deterministically", async () => {
     const storage = new IndexedDBStorage(`test-${Math.random()}`);
     let run = createRun(444);
-    for (let i = 0; i < 10; i++)
-      run = resolveAction(run, legalActions(run)[i]).state;
+    while (run.turn < 10 || run.pendingUpgrade.length)
+      run = resolveAction(run, legalActions(run)[0]).state;
     const save = recordRun(emptySave(), run);
     save.settings.sound = true;
     await storage.save(save);
@@ -26,7 +26,7 @@ describe("versioned journal", () => {
   });
   it("commits completion and rewards atomically, exactly once across reload", async () => {
     let run = createRun(32, "unique");
-    for (let i = 0; i < 25; i++)
+    while (run.status === "playing")
       run = resolveAction(run, legalActions(run)[0]).state;
     const storage = new IndexedDBStorage(`test-${Math.random()}`);
     await storage.save(recordRun(emptySave(), run));
@@ -41,7 +41,7 @@ describe("versioned journal", () => {
     expect(await new IndexedDBStorage(`test-${Math.random()}`).load()).toEqual(
       emptySave(),
     );
-    expect(() => decodeSave({ schemaVersion: 2 })).toThrow("version");
+    expect(() => decodeSave({ schemaVersion: 99 })).toThrow("version");
     const save = recordRun(emptySave(), createRun(12));
     save.current!.board[0] = { id: 1, kind: "rose", growth: 3, bornTurn: 0 };
     expect(() => decodeSave(save)).toThrow("damaged");

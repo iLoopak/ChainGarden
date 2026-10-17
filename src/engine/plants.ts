@@ -50,7 +50,7 @@ export const PLANTS: Record<PlantKind, PlantDefinition> = {
     base: 6,
     color: "#b6ce7c",
     ability:
-      "Ripe: each neighboring harvest scores +25%. Harvest: grow every neighbor by 1.",
+      "Ripe: each neighboring harvest scores +25%. Harvest: cool 6 heat and grow every neighbor by 1.",
     strategy: "Keep it ripe beside your most valuable plants.",
   },
   wildflower: {
@@ -61,5 +61,21 @@ export const PLANTS: Record<PlantKind, PlantDefinition> = {
     ability:
       "Harvest: grow every neighbor by 1, then sow a new wildflower in the first empty adjacent tile.",
     strategy: "Turn a harvest into the beginning of another garden.",
+  },
+  moonflower: {
+    name: "Moonflower",
+    subtitle: "Reactor stabilizer",
+    base: 8,
+    color: "#b4d9e3",
+    ability: "Harvest: cool 12 heat and grow every neighbor by 1.",
+    strategy: "Hold cooling tissue beside a hot catalyst.",
+  },
+  briar: {
+    name: "Briar",
+    subtitle: "Volatile catalyst",
+    base: 15,
+    color: "#de9879",
+    ability: "Harvest: activate all neighbors like a Rose, but add 6 heat.",
+    strategy: "Build a powerful chain and plan the overload footprint.",
   },
 };

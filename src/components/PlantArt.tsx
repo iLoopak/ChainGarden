@@ -76,6 +76,53 @@ export function PlantArt({
               <path d="M51 68Q76 70 75 52Q55 51 51 68" fill="#789a60" />
             </g>
           )}
+          {kind === "moonflower" && (
+            <g>
+              <path
+                d="M50 13Q67 27 66 45Q62 62 50 68Q36 61 34 45Q34 27 50 13Z"
+                fill="#c6e2dd"
+                stroke="#7bb9b5"
+                strokeWidth="2"
+              />
+              <path d="M50 22Q39 42 50 59Q62 43 50 22Z" fill="#396c77" />
+              <circle cx="50" cy="43" r="6" fill="#dbf4df" />
+              <path
+                d="M29 32Q20 44 32 53M72 29Q83 42 73 54"
+                fill="none"
+                stroke="#9ed1d7"
+                strokeWidth="2"
+              />
+              <circle cx="25" cy="24" r="2" fill="#d8efd9" />
+              <circle cx="77" cy="63" r="2" fill="#d8efd9" />
+            </g>
+          )}
+          {kind === "briar" && (
+            <g>
+              <path
+                d="M41 89L34 70L44 72L38 55M59 80L68 61L57 65"
+                fill="none"
+                stroke="#ba886d"
+                strokeWidth="3"
+              />
+              <path
+                d="M50 12L58 27L77 25L67 40L77 55L59 54L50 70L42 54L25 55L34 40L25 25L43 27Z"
+                fill="#784f43"
+                stroke="#c48469"
+                strokeWidth="2"
+              />
+              <path
+                d="M50 23Q72 35 59 51Q45 66 36 45Q27 30 50 23Z"
+                fill="#dd9d85"
+              />
+              <path
+                d="M43 34Q58 27 61 40Q56 53 45 47Q38 42 50 38"
+                fill="none"
+                stroke="#784c52"
+                strokeWidth="3"
+              />
+              <circle cx="50" cy="40" r="3" fill="#eed394" />
+            </g>
+          )}
           {kind === "sunflower" && (
             <g>
               {Array.from({ length: 10 }, (_, i) => (
@@ -176,6 +223,53 @@ export function PlantArt({
             strokeLinecap="round"
             opacity=".7"
           >
+            {kind === "moonflower" && (
+              <g>
+                <path
+                  d="M50 13Q67 27 66 45Q62 62 50 68Q36 61 34 45Q34 27 50 13Z"
+                  fill="#c6e2dd"
+                  stroke="#7bb9b5"
+                  strokeWidth="2"
+                />
+                <path d="M50 22Q39 42 50 59Q62 43 50 22Z" fill="#396c77" />
+                <circle cx="50" cy="43" r="6" fill="#dbf4df" />
+                <path
+                  d="M29 32Q20 44 32 53M72 29Q83 42 73 54"
+                  fill="none"
+                  stroke="#9ed1d7"
+                  strokeWidth="2"
+                />
+                <circle cx="25" cy="24" r="2" fill="#d8efd9" />
+                <circle cx="77" cy="63" r="2" fill="#d8efd9" />
+              </g>
+            )}
+            {kind === "briar" && (
+              <g>
+                <path
+                  d="M41 89L34 70L44 72L38 55M59 80L68 61L57 65"
+                  fill="none"
+                  stroke="#ba886d"
+                  strokeWidth="3"
+                />
+                <path
+                  d="M50 12L58 27L77 25L67 40L77 55L59 54L50 70L42 54L25 55L34 40L25 25L43 27Z"
+                  fill="#784f43"
+                  stroke="#c48469"
+                  strokeWidth="2"
+                />
+                <path
+                  d="M50 23Q72 35 59 51Q45 66 36 45Q27 30 50 23Z"
+                  fill="#dd9d85"
+                />
+                <path
+                  d="M43 34Q58 27 61 40Q56 53 45 47Q38 42 50 38"
+                  fill="none"
+                  stroke="#784c52"
+                  strokeWidth="3"
+                />
+                <circle cx="50" cy="40" r="3" fill="#eed394" />
+              </g>
+            )}
             {kind === "sunflower" && (
               <>
                 <circle cx="50" cy="40" r="11" strokeDasharray="1 4" />
