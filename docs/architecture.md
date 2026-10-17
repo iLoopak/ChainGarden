@@ -58,3 +58,11 @@ Vitest covers every plant, upgrade, mutation, queue order, score/heat tier, over
 Six Playwright scenarios run on desktop and portrait Chromium, including a full reward/research/unlocked-content loop and interrupted draft recovery. A Linux GitHub Actions workflow installs Chromium and runs lint, types, unit tests, build, E2E and deterministic simulation. Local macOS Chromium launch restrictions and actual in-app browser verification are recorded separately in [verification.md](verification.md).
 
 `npm run simulate` executes an opt-in Vitest harness in `scripts/` using fixed decision-policy RNG, fixed seeds, five strategies, two research profiles and matched single-upgrade ablations. The JSON report is generated separately from normal tests. It can import the same engine without React or a browser.
+
+## Wave 3 experience boundary
+
+`src/experience/tutorial.ts` owns a pure action/event-driven tutorial state machine and early action gates. `moss.ts` owns deterministic event-to-expression/tip selection, one-time topic memory and a four-action cooldown. The controller applies these transitions to the same save as the resolved engine action before animation. Neither module changes plant rules or invents outcomes. React renders target indices, concise guidance and the original `MossArt` SVG poses.
+
+Envelope schema 3 adds tutorial status/step/run ID/evidence, companion memory and a guidance setting; run schema remains 2. Schema 1 still migrates through the Wave 2 transformation before adding experience defaults; schema 2 preserves its full garden/ledger and receives a skipped tutorial when returning progress exists. New profiles receive available guidance. The decoder validates linked active runs, prerequisite evidence and completed-reward proof. Acknowledgments, skips, tip dismissals and Lab visits are serialized saves without a reward transition. Replaying a tutorial creates a fresh normal run ID and no special payout.
+
+Playback keeps exact event order and board snapshots, sets resource-only delays to zero and scales long sequences to roughly 6.5 seconds. No logic waits on animation. The new UI removes mode switching as a requirement, retains explicit harvest/prune confirmation and uses native details/dialogs for progressive disclosure. See `docs/ux-audit.md` for observed baseline problems and `docs/ux-guidelines.md` for the system.

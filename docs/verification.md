@@ -1,3 +1,15 @@
+# Wave 3 verification — 17 October 2026
+
+- Local lint, types, unit tests and production build run against the redesigned UI and schema-3 experience layer.
+- Re-ran all 1,304 deterministic simulations: the JSON is byte-identical to the Wave 2 reference. No gameplay/balance rules changed.
+- Local standalone Chromium still fails at macOS `MachPortRendezvousServer` launch before page load; Linux CI runs the actual desktop/portrait test suite.
+- Rendered baseline audit: 1440×1000 desktop, 390×844 portrait garden, Lab and Guide. Rendered redesign: original M.O.S.S., title, guided targets, actual growth/reload, direct three-plant forecast 80 → actual 80 with heat 9, compact upgrades, populated desktop matrix and 10-plant forecast 459 → actual +459.
+- Generated screenshots live under ignored `output/playwright/wave3-*.jpg`.
+
+Remote CI and final screen verification are recorded after completion below.
+
+---
+
 # Wave 2 verification — 17 October 2026
 
 - Lint, TypeScript, 79 Vitest tests and production build pass locally.

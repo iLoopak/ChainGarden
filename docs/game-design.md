@@ -1,4 +1,4 @@
-# Chain Garden — Wave 2 rules
+# Chain Garden — rules through Wave 3
 
 ## Direction
 
@@ -72,3 +72,9 @@ The resolver uses a FIFO queue, unique plant IDs, per-action activation/harvest/
 Touch/mouse: select a seed then an empty plot. Select any plant, inspect its full reaction forecast, then confirm. H selects harvesting; 1–3 select seeds; P pauses; Escape cancels a forecast before pausing. Utility buttons explain their turn/dew costs. Pruning requires a second explicit removal confirmation. The guide, lab, setup and drafts use keyboard-accessible dialogs. Reduced motion removes idle and transformation animation; Skip playback immediately presents the authoritative outcome. Sound is optional and off by default.
 
 Portrait layouts keep the matrix and three seed choices together at common phone heights; long explanations, utilities, collection and research scroll below. There is no timer, energy system, daily requirement, account or remote dependency.
+
+## Wave 3 experience layer
+
+The plant, progression, scoring, heat and turn rules above remain unchanged. M.O.S.S. and the first-cultivation state machine live outside the engine. A new player's seed-16 guided garden uses the ordinary initial board, real offers and normal transitions. It teaches through two plantings and a confirmed three-plant chain, then introduces the real draft and earned research later. Completion requires the full run reward and Lab visit, not elapsed turns. Skip/replay/save-resume and schema-1/2 migration preserve the progression ledger.
+
+The UI now uses one compact HUD, direct tap-to-inspect harvesting, a three-specimen hand and details on demand. The Field Guide is a cabinet, research a compact branch inspector, and results separate primary rewards from optional statistics. M.O.S.S. reacts to actual events without random messages or covering the grid. Long visual playback scales to about 6.5 seconds and remains skippable. See [UX guidelines](ux-guidelines.md) and [art direction](art-direction.md).

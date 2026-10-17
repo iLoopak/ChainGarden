@@ -49,3 +49,21 @@ describe("event-driven presentation", () => {
     expect(state.board).toEqual(before);
   });
 });
+
+it("caps long visual sequences while preserving exact event order and board state", () => {
+  const state = createRun(1);
+  state.board = Array.from({ length: 36 }, (_, i) => ({
+    id: i + 1,
+    kind: "rose" as const,
+    growth: 3,
+    bornTurn: -1,
+  }));
+  state.nextId = 37;
+  const result = resolveAction(state, { type: "harvest", index: 14 }),
+    frames = buildPlaybackFrames(result.events);
+  expect(frames.reduce((sum, f) => sum + f.duration, 0)).toBeLessThanOrEqual(
+    6600,
+  );
+  expect(frames.flatMap((f) => f.events)).toEqual(result.events);
+  expect(presentEvents(state.board, result.events)).toEqual(result.state.board);
+});

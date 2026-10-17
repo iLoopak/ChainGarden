@@ -56,7 +56,11 @@ describe("controller orchestration", () => {
     await vi.runAllTimersAsync();
     expect(storage.writes.map((s) => s.current?.turn)).toEqual([0, 1, 1, 1]);
     expect(storage.data.current?.turn).toBe(1);
-    expect(storage.data.settings).toEqual({ sound: true, reducedMotion: true });
+    expect(storage.data.settings).toEqual({
+      sound: true,
+      reducedMotion: true,
+      guidance: true,
+    });
   });
   it("finishes playback from the authoritative state with reduced motion", async () => {
     const storage = new MemoryStorage();

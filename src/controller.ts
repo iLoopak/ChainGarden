@@ -1,3 +1,13 @@
+import {
+  acknowledgeTutorial,
+  advanceTutorial,
+  beginTutorial,
+  skipTutorial,
+  tutorialActionAllowed,
+  TUTORIAL_SEED,
+  visitTutorialLab,
+} from "./experience/tutorial";
+import { observeMoss } from "./experience/moss";
 import { createRun, isLegalAction, resolveAction } from "./engine/game";
 import type {
   Action,
@@ -99,11 +109,11 @@ export class GameController {
         });
       });
   }
-  start(seed = freshSeed(), options: RunOptions = {}) {
+  start(seed = freshSeed(), options: RunOptions = {}, guided = false) {
     if (this.timer) clearTimeout(this.timer);
     this.finishPlayback = undefined;
     const owned = ownedResearch(this.view.data);
-    const research = options.research ?? owned;
+    const research = guided ? [] : (options.research ?? owned);
     if (research.some((id) => !owned.includes(id)))
       throw new Error("Research is locked.");
     const run = createRun(seed, freshRunId(), {
@@ -112,6 +122,12 @@ export class GameController {
       knownMutations: this.view.data.profile.discoveries,
     });
     const data = recordRun(this.view.data, run);
+    data.tutorial = guided
+      ? beginTutorial(run.id)
+      : ["available", "active"].includes(data.tutorial.status)
+        ? skipTutorial(data.tutorial)
+        : data.tutorial;
+    data.moss.pending = null;
     this.update({
       data,
       screen: "garden",
@@ -129,6 +145,55 @@ export class GameController {
       lastChain: 0,
     });
     this.persist(data);
+  }
+  startTutorial() {
+    this.start(TUTORIAL_SEED, {}, true);
+  }
+  tutorialContinue() {
+    const data = {
+      ...this.view.data,
+      tutorial: acknowledgeTutorial(this.view.data.tutorial, this.run),
+    };
+    this.update({ data });
+    this.persist(data);
+  }
+  skipTutorial() {
+    const data = {
+      ...this.view.data,
+      tutorial: skipTutorial(this.view.data.tutorial),
+    };
+    this.update({ data });
+    this.persist(data);
+  }
+  openLab() {
+    const data = {
+      ...this.view.data,
+      tutorial: visitTutorialLab(
+        this.view.data.tutorial,
+        this.view.data.profile.rewardedRuns.map((r) => r.id),
+      ),
+    };
+    this.update({ data });
+    this.persist(data);
+  }
+  dismissMoss() {
+    const data = {
+      ...this.view.data,
+      moss: { ...this.view.data.moss, pending: null },
+    };
+    this.update({ data });
+    this.persist(data);
+  }
+  again() {
+    const run = this.run;
+    if (run)
+      this.start(undefined, {
+        protocol: run.config.protocol,
+        challenge: run.config.challenge,
+        specimens: run.config.pool.filter(
+          (k) => !["sunflower", "rose", "clover", "wildflower"].includes(k),
+        ),
+      });
   }
   replay() {
     const run = this.run;
@@ -162,14 +227,39 @@ export class GameController {
       ...this.view.data,
       settings: { ...this.view.data.settings, ...patch },
     };
+    if (patch.guidance === false) data.moss = { ...data.moss, pending: null };
     this.update({ data });
     this.persist(data);
   }
   play(action: Action) {
     const current = this.view.data.current;
-    if (!current || this.view.busy || !isLegalAction(current, action)) return;
+    if (
+      !current ||
+      this.view.busy ||
+      !isLegalAction(current, action) ||
+      !tutorialActionAllowed(this.view.data.tutorial, action)
+    )
+      return;
     const result = resolveAction(current, action),
       data = recordRun(this.view.data, result.state);
+    data.tutorial = advanceTutorial(
+      data.tutorial,
+      action,
+      result,
+      data.profile.rewardedRuns.some((r) => r.id === result.state.id),
+    );
+    const core =
+      data.tutorial.status === "active" &&
+      ["plant", "grow", "connect", "harvest", "reactor", "upgrade"].includes(
+        data.tutorial.step,
+      );
+    data.moss = observeMoss(
+      data.moss,
+      result.events,
+      current.id,
+      result.state.turn,
+      core,
+    );
     // Save the entire resolved turn before animation. Reload never repeats rewards.
     this.persist(data);
     const still =

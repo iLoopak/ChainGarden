@@ -32,4 +32,9 @@ export const reactorTier = (heat: number) =>
     Math.min(4, Math.floor(heat / 25))
   ];
 
-export const challengeComplete = (run: Pick<GameState, "config" | "score" | "stats">): boolean => run.config.challenge && run.score >= BALANCE.challengeTarget && run.stats.overloads > 0;
+export const challengeComplete = (
+  run: Pick<GameState, "config" | "score" | "stats">,
+): boolean =>
+  run.config.challenge &&
+  run.score >= BALANCE.challengeTarget &&
+  run.stats.overloads > 0;

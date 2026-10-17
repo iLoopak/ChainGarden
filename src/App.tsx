@@ -1,43 +1,68 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { GameController } from "./controller";
 import { comboMultiplier, createRun, previewHarvest } from "./engine/game";
-import type { RunOptions } from "./engine/types";
 import { BALANCE, challengeComplete } from "./engine/balance";
-import { mutationDefinition } from "./engine/content";
+import { mutationDefinition, PROTOCOLS } from "./engine/content";
+import { PLANTS } from "./engine/plants";
+import type { Action, RunOptions } from "./engine/types";
+import { TUTORIAL_COPY, tutorialTarget } from "./experience/tutorial";
+import { eventExpression, MOSS_LINES } from "./experience/moss";
+import { GardenBoard } from "./components/GardenBoard";
+import { DecisionPanel } from "./components/DecisionPanel";
+import { Modal, FieldGuide } from "./components/GameDialogs";
+import { MossArt, MossCompanion } from "./components/Moss";
+import { Icon } from "./components/Icons";
+import { PlantArt } from "./components/PlantArt";
 import {
-  Reactor,
   ResearchLab,
   RunSetup,
   UpgradeChoices,
+  Reactor,
 } from "./components/Progression";
-import { PlantArt } from "./components/PlantArt";
-import { Icon } from "./components/Icons";
-import { Modal, FieldGuide } from "./components/GameDialogs";
-import { GardenBoard } from "./components/GardenBoard";
-import { DecisionPanel } from "./components/DecisionPanel";
 import { IndexedDBStorage } from "./persistence/storage";
 import { coordinate } from "./presentation/playback";
 const controller = new GameController(new IndexedDBStorage());
 void controller.initialize();
+type ModalKind =
+  | "setup"
+  | "lab"
+  | "guide"
+  | "settings"
+  | "restart"
+  | "tutorial-replay"
+  | "journal"
+  | "specimen"
+  | "reactor"
+  | null;
 const number = (n: number) => n.toLocaleString("en-US");
 export default function App() {
   const view = useSyncExternalStore(
     controller.subscribe,
     controller.getSnapshot,
   );
-  const [modal, setModal] = useState<
-    "guide" | "pause" | "restart" | "journal" | "lab" | "setup" | null
-  >(null);
-  const [offer, setOffer] = useState(0);
-  const [mode, setMode] = useState<"plant" | "harvest" | "prune">("plant");
-  const [inspected, setInspected] = useState<number | null>(null);
-  const [seenReveal, setSeenReveal] = useState("");
-  const opening = useMemo(() => createRun(314159), []);
-  const run = view.data.current;
-  const playing = view.screen === "garden";
-  const finished = playing && run?.status === "finished" && !view.busy;
-  const chamber =
-    playing && run ? run : run?.status === "playing" ? run : opening;
+  const [modal, setModal] = useState<ModalKind>(null),
+    [offer, setOffer] = useState(0),
+    [mode, setMode] = useState<"plant" | "harvest" | "prune">("plant"),
+    [inspected, setInspected] = useState<number | null>(null),
+    [guideChapter, setGuideChapter] = useState("Plants"),
+    [labCelebration, setLabCelebration] = useState(false);
+  const opening = useMemo(() => createRun(16), []),
+    run = view.data.current,
+    playing = view.screen === "garden" && !!run;
+  const finished = playing && run.status === "finished" && !view.busy;
+  const chamber = playing ? run : run?.status === "playing" ? run : opening;
+  const t = view.data.tutorial,
+    guided = playing && t.status === "active";
+  const target = guided ? tutorialTarget(t) : null;
+  const allowed = useMemo(
+    () =>
+      guided && ["plant", "connect", "harvest"].includes(t.step)
+        ? [target!]
+        : guided && ["grow", "reactor", "research"].includes(t.step)
+          ? []
+          : null,
+    [guided, t.step, target],
+  );
   const preview = useMemo(
     () =>
       run && inspected !== null && !view.busy && mode !== "prune"
@@ -45,13 +70,64 @@ export default function App() {
         : null,
     [run, inspected, view.busy, mode],
   );
-  const revealKey = `${run?.id}-${run?.turn}`;
+  const draft = playing && run.pendingUpgrade.length > 0 && !view.busy;
+  const tutorialCopy =
+    guided && !draft && !finished ? TUTORIAL_COPY[t.step] : undefined;
+  const notice =
+    view.data.settings.guidance && view.data.moss.pending
+      ? MOSS_LINES[view.data.moss.pending]
+      : null;
   const discoveries = view.events.filter(
     (e) => e.type === "mutation" && e.first,
   );
-  const reveal =
-    playing && !view.busy && discoveries.length > 0 && seenReveal !== revealKey;
-  const drafting = playing && !!run?.pendingUpgrade.length && !view.busy;
+  const selectedKind =
+    run?.board[inspected ?? -1]?.kind ?? chamber.offers[offer];
+  function start(options: RunOptions = {}, guide = false) {
+    if (guide) controller.startTutorial();
+    else controller.start(undefined, options);
+    setModal(null);
+    setInspected(null);
+    setMode("plant");
+    setOffer(0);
+  }
+  function guide(chapter = "Plants") {
+    setGuideChapter(chapter);
+    setModal("guide");
+  }
+  function again() {
+    if (run) {
+      controller.again();
+      setOffer(0);
+      setInspected(null);
+      setMode("plant");
+      setModal(null);
+    }
+  }
+  function lab() {
+    setLabCelebration(t.status === "active" && t.step === "research");
+    controller.openLab();
+    setModal("lab");
+  }
+  function play(action: Action) {
+    controller.play(action);
+    setInspected(null);
+    setMode("plant");
+    setOffer(0);
+  }
+  function tile(index: number) {
+    if (
+      !run ||
+      view.busy ||
+      run.pendingUpgrade.length ||
+      (allowed && !allowed.includes(index))
+    )
+      return;
+    if (run.board[index]) setInspected(inspected === index ? null : index);
+    else if (mode === "plant") play({ type: "plant", index, offer });
+  }
+  function newGarden() {
+    setModal(run?.status === "playing" ? "restart" : "setup");
+  }
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [view.screen]);
@@ -59,144 +135,125 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (
         modal ||
-        drafting ||
-        reveal ||
         !playing ||
         finished ||
-        !view.ready ||
-        view.busy
+        view.busy ||
+        draft ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(
+          (e.target as HTMLElement).tagName,
+        )
       )
         return;
       if (e.key === "Escape" && inspected !== null) {
         e.preventDefault();
         setInspected(null);
+        setMode("plant");
         return;
       }
       if (e.key === "Escape" || e.key.toLowerCase() === "p") {
         e.preventDefault();
-        setModal("pause");
+        setModal("settings");
       }
-      if (["1", "2", "3"].includes(e.key)) {
-        setOffer(Number(e.key) - 1);
+      if (
+        ["1", "2", "3"].includes(e.key) &&
+        (!guided || ["plant", "connect", "explore", "finish"].includes(t.step))
+      ) {
+        const i = Number(e.key) - 1;
+        if (guided && ["plant", "connect"].includes(t.step) && i !== 0) return;
+        setOffer(i);
         setMode("plant");
         setInspected(null);
       }
       if (e.key.toLowerCase() === "h") {
-        setMode("harvest");
-        setInspected(null);
+        const index =
+          guided && t.step === "harvest"
+            ? 20
+            : run!.board.findIndex(
+                (p) => p?.kind === "rose" || p?.kind === "briar",
+              );
+        if (index >= 0 && (!allowed || allowed.includes(index))) {
+          setInspected(index);
+          document
+            .querySelector<HTMLButtonElement>(`[data-testid="tile-${index}"]`)
+            ?.focus();
+        }
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [
     modal,
-    drafting,
-    reveal,
     playing,
     finished,
-    view.ready,
     view.busy,
+    draft,
     inspected,
+    guided,
+    t.step,
+    run,
+    allowed,
   ]);
-  function start(seed?: number, options: RunOptions = {}) {
-    controller.start(seed, options);
-    setOffer(0);
-    setMode("plant");
-    setInspected(null);
-    setModal(null);
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }
-  function tile(index: number) {
-    if (
-      !run ||
-      view.busy ||
-      run.pendingUpgrade.length ||
-      run.blocked.includes(index)
-    )
-      return;
-    if (run.board[index]) setInspected(inspected === index ? null : index);
-    else if (mode === "plant") {
-      controller.play({ type: "plant", index, offer });
-      setInspected(null);
-    }
-  }
-  function harvest() {
-    if (inspected === null || view.busy) return;
-    controller.play({ type: "harvest", index: inspected });
-    setInspected(null);
-  }
-  const phase = !view.busy
-    ? "ready"
-    : view.active?.type === "planted"
-      ? "plant"
-      : view.active?.type === "growth" && view.active.source === undefined
-        ? "grow"
-        : "react";
-  const logs = view.events.filter(
-    (e) => e.type !== "growth" || e.source !== undefined,
-  );
   if (!view.ready)
     return (
       <main className="loading">
-        <Icon name="leaf" size={38} />
+        <MossArt expression="curious" />
         <p>Waking the greenhouse…</p>
       </main>
     );
+  const earned = view.data.completed.find((s) => s.id === run?.id);
   return (
     <div
-      className={`app ${view.data.settings.reducedMotion ? "reduce-motion" : ""} ${!playing ? "at-title" : "in-run"} ${preview ? "has-forecast" : ""}`}
+      className={`app ${playing ? "in-run" : "at-title"} ${view.data.settings.reducedMotion ? "reduce-motion" : ""} ${preview ? "has-forecast" : ""} ${guided ? "guided-run" : ""} ${view.busy && view.chainCount >= 5 ? "chain-crescendo" : ""}`}
     >
       <header className="site-header">
         <button
           className="brand-button"
           aria-label="Chain Garden home"
-          onClick={() => (playing ? setModal("pause") : controller.home())}
+          onClick={() => (playing ? setModal("settings") : controller.home())}
         >
-          <span className="brand-mark">
-            <Icon name="leaf" size={23} />
-          </span>
-          <span className="brand">
-            CHAIN GARDEN<small>EXPERIMENTAL BOTANY</small>
+          <Icon name="leaf" size={24} />
+          <span>
+            Chain <em>Garden</em>
           </span>
         </button>
-        <div className="header-right">
-          <span className="greenhouse-id">
-            <i />
-            GREENHOUSE 01
-          </span>
+        <nav className="game-nav" aria-label="Main destinations">
           <button
-            className="text-button guide-button"
+            className={!modal ? "current" : ""}
+            onClick={() =>
+              run?.status === "playing"
+                ? controller.resume()
+                : controller.home()
+            }
+            aria-label="Play"
+          >
+            <Icon name="leaf" size={17} />
+            <span>Play</span>
+          </button>
+          <button
+            className={modal === "lab" ? "current" : ""}
+            onClick={lab}
+            aria-label="Research lab"
+          >
+            <Icon name="dew" size={17} />
+            <span>Lab</span>
+            <b>{view.data.profile.biomass}</b>
+          </button>
+          <button
+            className={modal === "guide" ? "current" : ""}
+            onClick={() => guide()}
             aria-label="Field guide"
-            onClick={() => setModal("guide")}
           >
             <Icon name="book" size={17} />
-            <span>Field guide</span>
+            <span>Guide</span>
           </button>
-          <button
-            className="icon-button"
-            onClick={() => setModal("journal")}
-            aria-label="Open garden journal"
-          >
-            <Icon name="leaf" size={18} />
-          </button>
-          <button
-            className="text-button lab-button"
-            aria-label="Research lab"
-            onClick={() => setModal("lab")}
-          >
-            <Icon name="dew" size={16} />
-            <span>Lab · {view.data.profile.biomass}</span>
-          </button>
-          {playing && (
-            <button
-              className="icon-button"
-              onClick={() => setModal("pause")}
-              aria-label="Pause game"
-            >
-              <Icon name="pause" size={18} />
-            </button>
-          )}
-        </div>
+        </nav>
+        <button
+          className="icon-button settings-button"
+          onClick={() => setModal("settings")}
+          aria-label={playing ? "Pause game" : "Settings"}
+        >
+          <Icon name="pause" size={18} />
+        </button>
       </header>
       {view.error && (
         <div className="storage-notice" role="status">
@@ -204,258 +261,243 @@ export default function App() {
         </div>
       )}
       <main className="game-shell">
-        <div className="chamber-heading">
-          <div>
-            <span className="eyebrow">
-              {playing ? "LIVE CULTIVATION" : "THE CONSERVATORY"}
-            </span>
-            <h1>
-              {playing ? "Cultivation chamber" : "A living chain reaction."}
-            </h1>
-          </div>
-          <span className="run-seed">
-            {playing ? `SEED ${chamber.seed}` : "TURN-BASED STRATEGY / VOL. 02"}
-          </span>
-        </div>
         <div className="chamber-workspace">
           <section className="garden-section" aria-label="Your garden">
             <div className="game-hud">
               <div className="score-stat">
-                <span className="eyebrow">GARDEN SCORE</span>
+                <span>Score</span>
                 <strong data-testid="score">
                   {number(playing ? view.displayScore : chamber.score)}
                   <small> pts</small>
                 </strong>
               </div>
-              <div
-                className={`turn-stat ${chamber.maxTurns - chamber.turn <= 5 ? "final-turns" : ""}`}
-              >
-                <span className="eyebrow">TURNS LEFT</span>
+              <div className="turn-stat">
+                <span>Turns left</span>
                 <strong>
-                  {chamber.maxTurns - chamber.turn}
+                  {25 - chamber.turn}
                   <small data-testid="turn">{chamber.turn} / 25</small>
                 </strong>
               </div>
-              <div className="dew-stat">
-                <span className="eyebrow">
-                  <Icon name="dew" size={12} />
-                  DEW
-                </span>
-                <strong>
-                  {chamber.dew}
-                  <small>/ 9</small>
-                </strong>
-              </div>
+              <button
+                className={`reactor-instrument ${guided && t.step === "reactor" ? "tutorial-instrument" : ""}`}
+                aria-label="Reactor details"
+                onClick={() => setModal("reactor")}
+              >
+                <Reactor
+                  heat={playing ? view.displayHeat : chamber.instability}
+                  run={chamber}
+                />
+              </button>
             </div>
-            <div
-              className="turn-track"
-              aria-label={`${chamber.maxTurns - chamber.turn} turns remaining`}
-            >
-              {Array.from({ length: 25 }, (_, i) => (
-                <i key={i} className={i < chamber.turn ? "spent" : ""} />
-              ))}
-            </div>
-            {playing && run && (
-              <Reactor
-                heat={view.displayHeat}
-                run={run}
-                reason={
-                  view.busy
-                    ? view.active?.text
-                    : view.events.filter((e) => e.heat !== undefined).at(-1)
-                        ?.text
-                }
-              />
-            )}
             <div className="chamber-tray">
               <GardenBoard
-                board={
-                  playing
-                    ? view.board.length
-                      ? view.board
-                      : chamber.board
-                    : chamber.board
-                }
-                mode={mode}
+                board={playing ? view.board : chamber.board}
                 blocked={chamber.blocked}
+                mode={mode}
                 busy={view.busy}
-                inactive={!playing || !!finished || drafting || !!reveal}
+                inactive={!playing || !!finished || draft}
                 inspected={inspected}
                 preview={preview}
                 events={view.events}
                 pulses={view.pulses}
                 onTile={tile}
+                target={target}
+                allowed={allowed}
               />
               {!playing && (
                 <div className="title-card">
-                  <span className="title-insignia">
-                    <Icon name="leaf" size={35} />
-                  </span>
-                  <span className="eyebrow">
-                    A TACTICAL BOTANICAL EXPERIMENT
-                  </span>
-                  <h2>
+                  <MossArt expression="curious" />
+                  <span className="eyebrow">Tactical botany</span>
+                  <h1>
                     Chain
                     <br />
                     <em>Garden</em>
-                  </h2>
-                  <p>
-                    Cultivate a living system.
-                    <br />
-                    Choose the moment to release it.
-                  </p>
-                  <div className="run-facts">
-                    <span>25 turns</span>
-                    <i />
-                    <span>3–5 minutes</span>
-                  </div>
+                  </h1>
+                  <p>Grow something worth taking apart.</p>
                   <button
                     className="primary-button"
                     onClick={() =>
                       run?.status === "playing"
                         ? controller.resume()
-                        : setModal("setup")
+                        : t.status === "available"
+                          ? start({}, true)
+                          : setModal("setup")
                     }
                   >
                     {run?.status === "playing"
                       ? "Continue your garden"
-                      : "Enter the garden"}
+                      : t.status === "available"
+                        ? "Grow with M.O.S.S."
+                        : "Enter the garden"}
                     <Icon name="arrow" size={18} />
                   </button>
-                  {run?.status === "playing" && (
-                    <button
-                      className="text-button"
-                      onClick={() => setModal("restart")}
-                    >
-                      Start a new experiment
-                    </button>
-                  )}
-                  <span className="title-footnote">
-                    NO CLOCK. EVERY MOVE MATTERS.
-                  </span>
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      run?.status === "playing"
+                        ? setModal("restart")
+                        : setModal("setup")
+                    }
+                  >
+                    {run?.status === "playing"
+                      ? "New garden"
+                      : t.status === "available"
+                        ? "I know my way around"
+                        : "Choose your experiment"}
+                  </button>
+                  <small>25 turns · no clock</small>
                 </div>
               )}
             </div>
-            <div className="phase-strip" aria-label="Turn sequence">
-              {[
-                ["plant", "01", "Act"],
-                ["grow", "02", "Grow"],
-                ["react", "03", "React"],
-                ["ready", "04", "Your turn"],
-              ].map(([id, n, label]) => (
-                <span key={id} className={phase === id ? "current" : ""}>
-                  <b>{n}</b>
-                  {label}
-                </span>
-              ))}
-            </div>
             {playing && (
-              <div
-                className={`chain-feedback ${view.lastChain > 1 || view.chainCount > 1 ? "has-combo" : ""}`}
-                role="status"
-                aria-live="polite"
-              >
-                <span className="chain-symbol">
-                  <Icon name={view.chainCount > 1 ? "sun" : "leaf"} size={22} />
+              <div className="garden-caption">
+                <span>
+                  {PROTOCOLS.find((p) => p.id === run.config.protocol)?.name}
+                  {run.config.challenge ? " · Containment" : ""}
                 </span>
-                <div>
-                  <strong>
-                    {view.busy
-                      ? view.chainCount > 1
-                        ? `${view.chainCount}-plant chain · ×${comboMultiplier(view.comboDepth).toFixed(2)}`
-                        : "Growth is propagating…"
-                      : view.lastChain > 1
-                        ? `${view.lastChain}-plant chain · +${view.lastPoints} points`
-                        : view.lastPoints
-                          ? `Harvest complete · +${view.lastPoints} points`
-                          : "Build your next reaction."}
-                  </strong>
-                  <span>
-                    {view.busy
-                      ? view.active?.text
-                      : preview
-                        ? "Forecast ready. Confirm the release when you choose."
-                        : "The garden waits for your decision."}
-                  </span>
-                </div>
-                {view.busy && <i className="busy-dot" />}
+                <span>
+                  <Icon name="dew" size={12} />
+                  {run.dew} / 9
+                </span>
               </div>
             )}
           </section>
-          {playing && run ? (
-            <DecisionPanel
-              run={run}
-              view={view}
-              offer={offer}
-              mode={mode}
-              inspected={inspected}
-              preview={preview}
-              onMode={(next) => {
-                setMode(next);
-                setInspected(null);
-              }}
-              onOffer={(next) => {
-                setOffer(next);
-                setInspected(null);
-              }}
-              onCancel={() => setInspected(null)}
-              onHarvest={harvest}
-              onSkip={() => controller.skipPlayback()}
-              onUtility={(action) => {
-                controller.play(action);
-                setInspected(null);
-                if (action.type === "prune") setMode("plant");
-              }}
-            />
+          {playing ? (
+            <div className="garden-bench">
+              <div className="companion-slot">
+                <MossCompanion
+                  expression={
+                    view.busy
+                      ? eventExpression(view.pulses)
+                      : tutorialCopy
+                        ? t.step === "reactor"
+                          ? "surprised"
+                          : t.step === "grow"
+                            ? "happy"
+                            : "curious"
+                        : (notice?.expression ?? "neutral")
+                  }
+                  text={
+                    tutorialCopy?.text ??
+                    (!view.busy ? notice?.text : undefined)
+                  }
+                  hint={tutorialCopy?.hint}
+                  onDismiss={
+                    !tutorialCopy && notice
+                      ? () => controller.dismissMoss()
+                      : undefined
+                  }
+                  quiet={!tutorialCopy && !notice}
+                >
+                  {guided && ["grow", "reactor"].includes(t.step) && (
+                    <button
+                      className="text-button tutorial-next"
+                      disabled={view.busy}
+                      onClick={() => {
+                        controller.tutorialContinue();
+                        setOffer(0);
+                      }}
+                    >
+                      Continue <Icon name="arrow" size={14} />
+                    </button>
+                  )}
+                </MossCompanion>
+                {guided && (
+                  <button
+                    className="skip-guide text-button"
+                    onClick={() => controller.skipTutorial()}
+                  >
+                    Skip guide
+                  </button>
+                )}
+              </div>
+              <DecisionPanel
+                run={run}
+                view={view}
+                offer={offer}
+                mode={mode}
+                inspected={inspected}
+                preview={preview}
+                tutorial={t}
+                onOffer={(i) => {
+                  setOffer(i);
+                  setInspected(null);
+                  setMode("plant");
+                }}
+                onCancel={() => {
+                  setInspected(null);
+                  setMode("plant");
+                }}
+                onHarvest={() =>
+                  inspected !== null &&
+                  play({ type: "harvest", index: inspected })
+                }
+                onUtility={play}
+                onSkip={() => controller.skipPlayback()}
+                onPrune={() => {
+                  setMode("prune");
+                  setInspected(null);
+                }}
+                onDetails={() => setModal("specimen")}
+              />
+              {!view.busy && view.lastPoints > 0 && (
+                <div
+                  className={`chain-feedback ${view.lastChain >= 3 ? "has-combo" : ""}`}
+                  role="status"
+                >
+                  <strong>
+                    {view.lastChain > 1
+                      ? `${view.lastChain}-plant chain`
+                      : "Harvest"}
+                    <b>+{view.lastPoints}</b>
+                  </strong>
+                  {view.lastChain >= 3 && (
+                    <span>
+                      ×{comboMultiplier(view.comboDepth).toFixed(2)} peak combo
+                    </span>
+                  )}
+                </div>
+              )}
+              {!!discoveries.length && (
+                <button
+                  className="discovery-strip"
+                  onClick={() => guide("Mutations")}
+                >
+                  {discoveries.length === 1
+                    ? mutationDefinition(discoveries[0].mutation!).name
+                    : `${discoveries.length} new mutations`}
+                  <span>
+                    +{new Set(discoveries.map((e) => e.mutation)).size * 3}{" "}
+                    Biomass <Icon name="arrow" size={13} />
+                  </span>
+                </button>
+              )}
+            </div>
           ) : (
             <aside className="opening-notes">
-              <span className="eyebrow">THE EXPERIMENT</span>
-              <h3>
-                Grow an engine.
+              <span className="eyebrow">The greenhouse is yours</span>
+              <h2>
+                Keep the engine.
                 <br />
-                <em>Harvest a reaction.</em>
-              </h3>
+                <em>Or take the points.</em>
+              </h2>
               <p>
-                Keep productive organisms alive. Connect their abilities.
-                Collect the chain before your 25 turns run out.
+                Plants grow together. Roses set off chains. Every harvest
+                changes what comes next.
               </p>
-              <ol>
-                <li>
-                  <b>01</b>
-                  <span>
-                    <strong>Cultivate</strong>Plant one of three seeds. Every
-                    survivor grows.
-                  </span>
-                </li>
-                <li>
-                  <b>02</b>
-                  <span>
-                    <strong>Connect</strong>Only edge-sharing neighbors
-                    interact.
-                  </span>
-                </li>
-                <li>
-                  <b>03</b>
-                  <span>
-                    <strong>Release</strong>Harvest a rose to activate the
-                    chain.
-                  </span>
-                </li>
-              </ol>
-              <div className="specimen-roster">
-                {opening.config.pool.map((kind) => (
-                  <PlantArt key={kind} kind={kind} />
-                ))}
+              <div className="opening-specimens">
+                {(["sunflower", "rose", "mushroom", "clover"] as const).map(
+                  (k) => (
+                    <PlantArt key={k} kind={k} />
+                  ),
+                )}
               </div>
               <button
                 className="record-button"
                 onClick={() => setModal("journal")}
               >
-                <span className="eyebrow">PERSONAL BEST</span>
-                <strong>
-                  {number(view.data.best)}
-                  <small> pts</small>
-                </strong>
+                <span>Personal best</span>
+                <strong>{number(view.data.best)}</strong>
                 <Icon name="arrow" size={16} />
               </button>
             </aside>
@@ -464,229 +506,234 @@ export default function App() {
         {playing && (
           <details className="event-journal" aria-label="Last turn event log">
             <summary>
-              <span className="eyebrow">REACTION LOG</span>
-              <span>
-                {logs.length
-                  ? `${logs.length} recorded events`
-                  : "No reaction yet"}
-                <Icon name="arrow" size={13} />
-              </span>
+              Reaction log <span>{view.events.length} events</span>
             </summary>
             <ol>
-              {logs.length ? (
-                logs.map((event, i) => (
-                  <li key={i} className={`log-${event.type}`}>
-                    <span className="log-step">
-                      {String(i + 1).padStart(2, "0")}
+              {view.events
+                .filter((e) => e.type !== "growth" || e.source !== undefined)
+                .map((e, i) => (
+                  <li className={`log-${e.type}`} key={i}>
+                    <span>
+                      {e.index < 0
+                        ? "Lab"
+                        : `${e.source !== undefined ? `${coordinate(e.source)} → ` : ""}${coordinate(e.index)}`}
                     </span>
-                    <b className="log-coordinate">
-                      {event.source !== undefined
-                        ? `${coordinate(event.source)} → `
-                        : ""}
-                      {event.index >= 0 ? coordinate(event.index) : "LAB"}
-                    </b>
-                    <span>{event.text}</span>
+                    {e.text}
                   </li>
-                ))
-              ) : (
-                <li>
-                  Plant beside the established sunflower, rose and clover. Or
-                  inspect their harvest forecasts.
-                </li>
-              )}
+                ))}
             </ol>
           </details>
         )}
       </main>
-      <footer className="game-footer">
-        <span>
-          <i />
-          Turn-based. The greenhouse grows only when you act.
-        </span>
-        <span>PROGRESS SAVES AFTER EVERY TURN</span>
-      </footer>
       {modal === "setup" && (
         <Modal
           title="Prepare the chamber"
           className="setup-modal"
           onClose={() => setModal(null)}
         >
-          <RunSetup
-            data={view.data}
-            onStart={(options) => start(undefined, options)}
-          />
+          <RunSetup data={view.data} onStart={(options) => start(options)} />
         </Modal>
       )}
       {modal === "lab" && (
         <Modal
-          title="The research lab"
+          title="Research lab"
           className="lab-modal"
           onClose={() => setModal(null)}
         >
+          {labCelebration && (
+            <div className="lab-welcome">
+              <MossArt expression="happy" />
+              <p>New tools. New possibilities.</p>
+            </div>
+          )}
           <ResearchLab
             data={view.data}
             onPurchase={(id) => controller.purchase(id)}
           />
         </Modal>
       )}
-      {!modal && reveal && (
-        <Modal
-          title="New tissue discovered."
-          className="discovery-modal"
-          onClose={() => setSeenReveal(revealKey)}
-        >
-          <span className="eyebrow">FIRST OBSERVATION · RESEARCH SECURED</span>
-          {discoveries.map((e, i) => {
-            const m = mutationDefinition(e.mutation!);
-            return (
-              <article className="discovery-reveal" key={i}>
-                <PlantArt kind={e.kind!} />
-                <div>
-                  <h3>{m.name}</h3>
-                  <p>{m.effect}</p>
-                  <small>{m.prerequisite}</small>
-                </div>
-              </article>
-            );
-          })}
-          <p className="discovery-bonus">
-            +{new Set(discoveries.map((e) => e.mutation)).size * 3} Biomass ·
-            added to the field guide
-          </p>
-          <button
-            className="primary-button full"
-            onClick={() => setSeenReveal(revealKey)}
-          >
-            Continue cultivation <Icon name="arrow" />
-          </button>
-        </Modal>
-      )}
-      {!modal && !reveal && drafting && run && (
-        <Modal
-          title="Evolve your experiment."
-          className="upgrade-modal"
-          dismissible={false}
-          onClose={() => {}}
-        >
-          <UpgradeChoices
-            run={run}
-            onChoose={(upgrade) =>
-              controller.play({ type: "upgrade", upgrade })
-            }
-          />
-        </Modal>
-      )}
       {modal === "guide" && (
         <Modal
-          title="The field guide"
+          title="Field guide"
           className="guide-modal"
           onClose={() => setModal(null)}
         >
-          <FieldGuide data={view.data} />
+          <FieldGuide data={view.data} initialChapter={guideChapter} />
+        </Modal>
+      )}
+      {modal === "specimen" && (
+        <Modal
+          title={PLANTS[selectedKind].name}
+          className="specimen-modal"
+          onClose={() => setModal(null)}
+        >
+          <div className="specimen-portrait">
+            <PlantArt kind={selectedKind} />
+            <span>{PLANTS[selectedKind].subtitle}</span>
+          </div>
+          <p className="specimen-rule">{PLANTS[selectedKind].ability}</p>
+          <p className="fine-print">{PLANTS[selectedKind].strategy}</p>
+          {run?.board[inspected ?? -1]?.traits?.map((id) => (
+            <div className="trait-detail" key={id}>
+              <h3>{mutationDefinition(id).name}</h3>
+              <p>{mutationDefinition(id).effect}</p>
+            </div>
+          ))}
+        </Modal>
+      )}
+      {modal === "reactor" && (
+        <Modal title="The living reactor" onClose={() => setModal(null)}>
+          <MossCompanion
+            expression="warning"
+            text="Heat is useful. Until it isn’t."
+          />
+          <div className="guide-rules">
+            <p>
+              Harvests add 2 + 3 × depth heat. Higher tiers add 3 / 6 / 9 points
+              per chain depth.
+            </p>
+            <p>
+              At 100, one overload removes up to three survivors around the
+              root, then resets heat to 35. Gain 20 + 5 per lost plant points,
+              up to 3 dew and two ripe plantings.
+            </p>
+            <p>
+              Clovers cool 6; Moonflowers cool 12. Vent for 3 dew and one turn
+              to cool 15. Once triggered, later cooling cannot cancel an
+              overload.
+            </p>
+            {view.events.filter((e) => e.heat !== undefined).length > 0 && (
+              <details>
+                <summary>Last reaction</summary>
+                {view.events
+                  .filter((e) => e.heat !== undefined)
+                  .map((e, i) => (
+                    <p key={i}>{e.text}</p>
+                  ))}
+              </details>
+            )}
+          </div>
         </Modal>
       )}
       {modal === "journal" && (
-        <Modal title="Your garden journal" onClose={() => setModal(null)}>
-          <p className="modal-intro">
-            Completed experiments. Preserved locally.
-          </p>
-          {view.data.completed.length ? (
-            <div className="history-list">
-              {view.data.completed.map((s, i) => (
-                <div key={s.id}>
+        <Modal title="Garden journal" onClose={() => setModal(null)}>
+          <div className="history-list">
+            {view.data.completed.length ? (
+              view.data.completed.map((s) => (
+                <article key={s.id}>
                   <span>
-                    {String(i + 1).padStart(2, "0")}
-                    <small> SEED {s.seed}</small>
+                    {PROTOCOLS.find((p) => p.id === s.protocol)?.name}
+                    <small>Seed {s.seed}</small>
                   </span>
                   <strong>{number(s.score)} pts</strong>
-                  <small>{s.stats.bestChain} plant best chain</small>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="empty-journal">
-              Your first story is waiting to grow. Finish a garden to add it
-              here.
-            </p>
-          )}
+                  <small>
+                    Chain {s.stats.bestChain} · +{s.biomass} Biomass
+                  </small>
+                </article>
+              ))
+            ) : (
+              <p>Your first garden is waiting.</p>
+            )}
+          </div>
         </Modal>
       )}
-      {modal === "pause" && (
-        <Modal title="Experiment paused." onClose={() => setModal(null)}>
-          <p className="modal-intro">
-            Nothing grows while you decide. Your progress is saved.
-          </p>
+      {modal === "settings" && (
+        <Modal
+          title={playing ? "Take your time." : "Greenhouse settings"}
+          onClose={() => setModal(null)}
+        >
           <div className="pause-settings">
-            <label>
-              <span>
-                <Icon name="sound" />
-                Garden sounds
-              </span>
-              <input
-                type="checkbox"
-                checked={view.data.settings.sound}
-                onChange={(e) =>
-                  controller.settings({ sound: e.target.checked })
-                }
-              />
-            </label>
-            <label>
-              <span>
-                <Icon name="leaf" />
-                Gentle motion only
-              </span>
-              <input
-                type="checkbox"
-                checked={view.data.settings.reducedMotion}
-                onChange={(e) =>
-                  controller.settings({ reducedMotion: e.target.checked })
-                }
-              />
-            </label>
+            {(
+              [
+                { key: "sound", label: "Garden sounds" },
+                { key: "reducedMotion", label: "Gentle motion only" },
+                { key: "guidance", label: "M.O.S.S. tips" },
+              ] as const
+            ).map(({ key, label }) => (
+              <label key={key}>
+                <span>{label}</span>
+                <input
+                  type="checkbox"
+                  checked={view.data.settings[key]}
+                  onChange={(e) =>
+                    controller.settings({ [key]: e.target.checked })
+                  }
+                />
+              </label>
+            ))}
           </div>
-          <button
-            className="primary-button full"
-            onClick={() => setModal(null)}
-          >
-            Back to the garden
-            <Icon name="arrow" />
-          </button>
-          <div className="pause-actions">
+          {playing && (
             <button
-              className="text-button"
-              disabled={view.busy}
-              onClick={() => setModal("restart")}
+              className="primary-button full"
+              onClick={() => setModal(null)}
             >
+              Back to the garden <Icon name="arrow" />
+            </button>
+          )}
+          <div className="settings-links">
+            <button onClick={() => setModal("journal")}>
+              Statistics & journal
+            </button>
+            <button
+              disabled={view.busy}
+              onClick={() => setModal("tutorial-replay")}
+            >
+              Replay tutorial
+            </button>
+            {guided && (
+              <button
+                onClick={() => {
+                  controller.skipTutorial();
+                  setModal(null);
+                }}
+              >
+                Skip tutorial
+              </button>
+            )}
+            <button disabled={view.busy} onClick={newGarden}>
               Start a new garden
             </button>
-            <button
-              className="text-button"
-              disabled={view.busy}
-              onClick={() => {
-                controller.home();
-                setModal(null);
-              }}
-            >
-              Save & return home
-            </button>
+            {playing && (
+              <button
+                disabled={view.busy}
+                onClick={() => {
+                  controller.home();
+                  setModal(null);
+                }}
+              >
+                Save & return home
+              </button>
+            )}
           </div>
           <p className="fine-print">
-            Progress saves after every turn. Keyboard: 1–3 select seeds, H
-            harvest, P / Esc pause. Tab and Enter navigate plots.
+            1–3 seeds · H inspect a Rose · P pause · Arrow keys move between
+            plots.
           </p>
         </Modal>
       )}
-      {modal === "restart" && (
-        <Modal title="Make a fresh start?" onClose={() => setModal(null)}>
+      {(modal === "restart" || modal === "tutorial-replay") && (
+        <Modal
+          title={
+            modal === "tutorial-replay"
+              ? "Grow with M.O.S.S.?"
+              : "A fresh garden?"
+          }
+          onClose={() => setModal(null)}
+        >
           <p className="modal-intro">
-            Your current garden will be replaced. Your personal best and
-            completed gardens stay in your journal.
+            {run?.status === "playing"
+              ? "This replaces the current garden. Your research, discoveries and completed runs stay."
+              : "Your research and discoveries stay with you."}
           </p>
           <button
             className="primary-button full"
-            onClick={() => setModal("setup")}
+            onClick={() =>
+              modal === "tutorial-replay" ? start({}, true) : setModal("setup")
+            }
           >
-            Configure a new beginning
+            {modal === "tutorial-replay"
+              ? "Begin guided garden"
+              : "Configure a new beginning"}
             <Icon name="arrow" />
           </button>
           <button className="text-button full" onClick={() => setModal(null)}>
@@ -694,100 +741,110 @@ export default function App() {
           </button>
         </Modal>
       )}
-      {finished && !modal && !reveal && (
+      {!modal && draft && (
+        <Modal
+          title="Evolve your experiment."
+          className="upgrade-modal"
+          dismissible={false}
+          onClose={() => {}}
+        >
+          {guided && t.step === "upgrade" && (
+            <MossCompanion
+              expression="curious"
+              text="Choose a new way to grow."
+            />
+          )}
+          <UpgradeChoices
+            run={run!}
+            onChoose={(upgrade) => play({ type: "upgrade", upgrade })}
+          />
+        </Modal>
+      )}
+      {!modal && finished && (
         <Modal
           title="Cultivation complete."
           className="results-modal"
           onClose={() => controller.home()}
         >
-          <div className="result-bouquet">
-            <PlantArt kind="wildflower" />
-            <PlantArt kind="sunflower" />
-            <PlantArt kind="rose" />
-          </div>
-          <span className="eyebrow">25 TURNS · REACTION ARCHIVED</span>
+          <MossArt
+            expression={challengeComplete(run!) ? "surprised" : "happy"}
+          />
+          <span className="eyebrow">
+            {run!.score >= view.data.best ? "Personal best" : "Garden archived"}
+          </span>
           <div className="final-score" data-testid="final-score">
             {number(run!.score)}
-            <small> points</small>
+            <small>points</small>
           </div>
-          <p className="result-rank">
-            {run!.score >= view.data.best && run!.score > 0
-              ? "Personal best recorded."
-              : "A new experiment. A different chain."}
-          </p>
-          <div className="result-stats">
-            <div>
-              <strong>{run!.stats.harvested}</strong>
-              <span>plants harvested</span>
-            </div>
-            <div>
-              <strong>{run!.stats.bestChain}</strong>
-              <span>longest chain</span>
-            </div>
-            <div>
-              <strong>{run!.stats.bestTurn}</strong>
-              <span>best turn</span>
-            </div>
-          </div>
-          <div className="reward-panel">
-            <span className="eyebrow">RESEARCH YIELD</span>
-            <strong data-testid="biomass-earned">
-              +{view.data.completed.find((s) => s.id === run!.id)?.biomass ?? 0}{" "}
-              Biomass
-            </strong>
-            <p>
-              {run!.discoveries.length} mutation types observed ·{" "}
-              {run!.stats.overloads} overloads
-            </p>
-            <p>
-              {view.data.completed
-                .find((s) => s.id === run!.id)
-                ?.discoveries.map((id) => mutationDefinition(id).name)
-                .join(" · ") || "Every experiment builds knowledge."}
-            </p>
-            <button className="text-button" onClick={() => setModal("lab")}>
-              Research your next experiment · {view.data.profile.biomass}{" "}
-              Biomass <Icon name="arrow" size={14} />
-            </button>
-          </div>
-          {run!.config.challenge && (
-            <p className="challenge-result">
-              Containment Trial ·{" "}
-              {challengeComplete(run!)
-                ? "Objective achieved · +6 Biomass included"
-                : `Target: ${BALANCE.challengeTarget} points + one overload`}
+          {run!.score < view.data.best && (
+            <p className="result-record">
+              Personal best {number(view.data.best)} ·{" "}
+              {number(view.data.best - run!.score)} to match
             </p>
           )}
-          <p className="result-tip">
-            {run!.stats.bestChain < 3
-              ? "Next time: gather ripe plants around a rose, then harvest the rose to set your chain in motion."
-              : "A well-placed clover makes every link in your next chain a little more rewarding."}
+          <div className="result-highlights">
+            <span>
+              <b>{run!.stats.bestChain}</b> best chain
+            </span>
+            <strong data-testid="biomass-earned">
+              +{earned?.biomass ?? 0} Biomass
+            </strong>
+          </div>
+          <p className="result-moss">
+            {t.status === "active" && t.step === "research"
+              ? "Your garden just funded the next experiment."
+              : run!.stats.bestChain >= 5
+                ? "That chain had roots."
+                : "A good beginning. Let’s grow another."}
           </p>
+          {!!earned?.discoveries.length && (
+            <div className="result-discoveries">
+              {earned.discoveries.map((id) => (
+                <span key={id}>{mutationDefinition(id).name}</span>
+              ))}
+            </div>
+          )}
+          <button className="primary-button full" onClick={again}>
+            Play again <Icon name="arrow" />
+          </button>
+          <button className="secondary-button full" onClick={lab}>
+            Research your next experiment · {view.data.profile.biomass} Biomass
+          </button>
           <button
-            className="primary-button full"
+            className="text-button full"
             onClick={() => setModal("setup")}
           >
-            Begin next run
-            <Icon name="arrow" />
+            Change protocol or seeds
           </button>
-          <div className="pause-actions">
+          <details className="expanded-statistics">
+            <summary>Run details</summary>
+            <p>
+              {run!.stats.harvested} harvests · {run!.stats.bestTurn} best turn
+              · {run!.stats.overloads} overloads
+            </p>
+            <p>
+              Seed {run!.seed} ·{" "}
+              {PROTOCOLS.find((p) => p.id === run!.config.protocol)?.name}
+            </p>
+            {run!.config.challenge && (
+              <p>
+                {challengeComplete(run!)
+                  ? "Containment complete · +6 Biomass included"
+                  : `Containment target: ${BALANCE.challengeTarget} + one overload`}
+              </p>
+            )}
             <button
               className="text-button"
               onClick={() => {
                 controller.replay();
-                setInspected(null);
+                setOffer(0);
                 setMode("plant");
+                setInspected(null);
               }}
             >
               Replay this seed
             </button>
-            <button className="text-button" onClick={() => controller.home()}>
-              Return home
-            </button>
-          </div>
-          <p className="fine-print">
-            Seed {run!.seed} · Saved to your garden journal
-          </p>
+          </details>
         </Modal>
       )}
     </div>

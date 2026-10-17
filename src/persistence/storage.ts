@@ -1,3 +1,7 @@
+import { newTutorial, PROOFS, TUTORIAL_STEPS } from "../experience/tutorial";
+import type { TutorialProgress } from "../experience/tutorial";
+import { MOSS_TRIGGERS, newMossMemory } from "../experience/moss";
+import type { MossMemory } from "../experience/moss";
 import { PLANT_KINDS } from "../engine/types";
 import type {
   GameState,
@@ -19,6 +23,7 @@ import { BALANCE, challengeComplete } from "../engine/balance";
 export interface Settings {
   sound: boolean;
   reducedMotion: boolean;
+  guidance: boolean;
 }
 export interface RunSummary {
   id: string;
@@ -40,7 +45,9 @@ export interface Profile {
   rewardedRuns: { id: string; biomass: number }[];
 }
 export interface SaveData {
-  schemaVersion: 2;
+  schemaVersion: 3;
+  tutorial: TutorialProgress;
+  moss: MossMemory;
   current: GameState | null;
   settings: Settings;
   best: number;
@@ -48,9 +55,11 @@ export interface SaveData {
   profile: Profile;
 }
 export const emptySave = (): SaveData => ({
-  schemaVersion: 2,
+  schemaVersion: 3,
+  tutorial: newTutorial(),
+  moss: newMossMemory(),
   current: null,
-  settings: { sound: false, reducedMotion: false },
+  settings: { sound: false, reducedMotion: false, guidance: true },
   best: 0,
   completed: [],
   profile: {
@@ -74,9 +83,7 @@ export function completionBiomass(
       Math.floor(run.score / BALANCE.scoreStep),
     ) +
     Math.min(2, Math.floor(run.stats.bestChain / 4)) +
-    (challengeComplete(run)
-      ? BALANCE.challengeBiomass
-      : 0)
+    (challengeComplete(run) ? BALANCE.challengeBiomass : 0)
   );
 }
 export function canPurchase(data: SaveData, id: ResearchId): boolean {
@@ -285,7 +292,7 @@ function migrateV1(raw: Record<string, unknown>): SaveData {
   )
     throw new Error("The run history is damaged.");
   const next = emptySave();
-  next.settings = raw.settings as Settings;
+  next.settings = { ...(raw.settings as Settings), guidance: true };
   next.best = raw.best as number;
   next.profile.purchases = [
     { id: "mycology", cost: 0, legacy: true },
@@ -354,20 +361,102 @@ function migrateV1(raw: Record<string, unknown>): SaveData {
   }
   return next;
 }
+function validExperience(raw: Record<string, unknown> | SaveData): boolean {
+  const t = raw.tutorial,
+    m = raw.moss;
+  if (
+    !record(t) ||
+    !["available", "active", "skipped", "complete"].includes(
+      String(t.status),
+    ) ||
+    !TUTORIAL_STEPS.includes(t.step as (typeof TUTORIAL_STEPS)[number]) ||
+    !(
+      t.runId === null ||
+      (typeof t.runId === "string" && t.runId.length > 0)
+    ) ||
+    !uniqueList(t.proof, PROOFS) ||
+    !record(m) ||
+    !uniqueList(m.seen, MOSS_TRIGGERS) ||
+    !(
+      m.pending === null ||
+      MOSS_TRIGGERS.includes(m.pending as (typeof MOSS_TRIGGERS)[number])
+    ) ||
+    !(m.lastRun === null || typeof m.lastRun === "string") ||
+    !integer(m.lastTurn, 0, 25)
+  )
+    return false;
+  if (m.pending !== null && !m.seen.includes(m.pending as string)) return false;
+  if (
+    t.status === "complete" &&
+    (t.step !== "done" ||
+      !PROOFS.every((p) => (t.proof as string[]).includes(p)) ||
+      !(raw.profile as Profile).rewardedRuns.some((r) => r.id === t.runId))
+  )
+    return false;
+  if (
+    t.status === "available" &&
+    (t.runId !== null || t.step !== "plant" || t.proof.length !== 0)
+  )
+    return false;
+  if (t.status === "skipped" && t.step !== "done") return false;
+  if (t.status === "active") {
+    const run = raw.current as GameState | null;
+    if (
+      !run ||
+      run.id !== t.runId ||
+      t.step === "done" ||
+      (t.step === "research" &&
+        (!(raw.profile as Profile).rewardedRuns.some((r) => r.id === run.id) ||
+          run.status !== "finished"))
+    )
+      return false;
+    const required: Partial<Record<string, string[]>> = {
+      grow: ["planted", "grown"],
+      connect: ["planted", "grown"],
+      harvest: PROOFS.slice(0, 3),
+      reactor: PROOFS.slice(0, 4),
+      explore: PROOFS.slice(0, 5),
+      upgrade: PROOFS.slice(0, 5),
+      finish: PROOFS.slice(0, 6),
+      research: [...PROOFS],
+    };
+    if (
+      !(required[t.step as string] ?? []).every((p) =>
+        (t.proof as string[]).includes(p),
+      )
+    )
+      return false;
+  }
+  return true;
+}
 export function decodeSave(value: unknown): SaveData {
   if (
     !record(value) ||
-    (value.schemaVersion !== 1 && value.schemaVersion !== 2)
+    (value.schemaVersion !== 1 &&
+      value.schemaVersion !== 2 &&
+      value.schemaVersion !== 3)
   )
     throw new Error("This save version cannot be opened.");
   const raw =
     value.schemaVersion === 1 ? migrateV1(value) : structuredClone(value);
+  if (value.schemaVersion !== 3) {
+    Object.assign(raw, {
+      schemaVersion: 3,
+      tutorial:
+        raw.current || (Array.isArray(raw.completed) && raw.completed.length)
+          ? { ...newTutorial(), status: "skipped", step: "done" }
+          : newTutorial(),
+      moss: newMossMemory(),
+    });
+    if (record(raw.settings)) raw.settings.guidance = true;
+  }
   if (raw.current !== null && !isGameState(raw.current))
     throw new Error("The saved garden is damaged.");
   if (
     !record(raw.settings) ||
     typeof raw.settings.sound !== "boolean" ||
     typeof raw.settings.reducedMotion !== "boolean" ||
+    typeof raw.settings.guidance !== "boolean" ||
     !integer(raw.best) ||
     !Array.isArray(raw.completed) ||
     raw.completed.length > 100 ||
@@ -451,6 +540,8 @@ export function decodeSave(value: unknown): SaveData {
       ))
   )
     throw new Error("The garden contains locked research.");
+  if (!validExperience(raw))
+    throw new Error("The onboarding journal is damaged.");
   return raw as unknown as SaveData;
 }
 /** Snapshot, discovery ledger, completed-run ledger and balance share one atomic IDB value. */
