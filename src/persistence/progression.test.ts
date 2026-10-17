@@ -163,11 +163,11 @@ describe("version 1 migration", () => {
   it("preserves the garden, seed stream, settings and old species while explicitly crediting past completions once", async () => {
     const old = legacy(),
       data = decodeSave(old);
-    expect(data.schemaVersion).toBe(2);
+    expect(data.schemaVersion).toBe(3);
     expect(data.current?.rng).toBe(old.current.rng);
     expect(data.current?.board).toEqual(old.current.board);
     expect(data.current?.turn).toBe(7);
-    expect(data.settings).toEqual(old.settings);
+    expect(data.settings).toEqual({ ...old.settings, guidance: true });
     expect(ownedResearch(data)).toEqual(["mycology", "xerophytes"]);
     expect(data.profile.biomass).toBe(11);
     expect(data.profile.purchases.every((p) => p.legacy && p.cost === 0)).toBe(
@@ -188,7 +188,7 @@ describe("version 1 migration", () => {
     const old = legacy();
     old.current.rng = -1;
     expect(() => decodeSave(old)).toThrow("damaged");
-    expect(() => decodeSave({ schemaVersion: 3 })).toThrow("version");
+    expect(() => decodeSave({ schemaVersion: 99 })).toThrow("version");
   });
   it("migrates a finished legacy run whose reward was already in history without duplication", () => {
     const old = legacy();

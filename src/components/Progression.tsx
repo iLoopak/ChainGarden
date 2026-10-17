@@ -1,12 +1,10 @@
+import { UPGRADE_COPY } from "../experience/copy";
 import { useState } from "react";
-import type { CSSProperties } from "react";
 import {
   availableSpecimens,
-  MUTATIONS,
   PROTOCOLS,
   RESEARCH,
   STARTER_POOL,
-  UPGRADES,
   upgradeDefinition,
 } from "../engine/content";
 import { reactorTier } from "../engine/balance";
@@ -25,27 +23,15 @@ import { PlantArt } from "./PlantArt";
 import { Icon } from "./Icons";
 export function Reactor({
   heat,
-  run,
-  reason,
 }: {
   heat: number;
-  run: GameState;
+  run?: GameState;
   reason?: string;
 }) {
-  const next =
-    heat < 25
-      ? "At 25: +3 points per chain depth."
-      : heat < 50
-        ? "At 50: +6 points per depth; heat mutations awaken."
-        : heat < 75
-          ? "At 75: +9 points per depth."
-          : "At 100: lose up to 3 nearby plants; gain points, dew and 2 charged plantings.";
   return (
     <div className={`reactor tier-${Math.min(3, Math.floor(heat / 25))}`}>
       <div className="reactor-heading">
-        <span>
-          <i /> BIOREACTOR <b>{reactorTier(heat)}</b>
-        </span>
+        <span>{reactorTier(heat)}</span>
         <strong data-testid="heat">
           {heat}
           <small> / 100</small>
@@ -64,18 +50,46 @@ export function Reactor({
           <b key={n} style={{ left: `${n}%` }} />
         ))}
       </div>
-      <p>{next}</p>
-      {reason && (
-        <p className="reactor-reason" aria-live="polite">
-          {reason}
-        </p>
-      )}
-      {run.chargedSeeds > 0 && (
-        <span className="charged-seeds">
-          {run.chargedSeeds} charged plantings · next seeds start ripe
-        </span>
-      )}
     </div>
+  );
+}
+export function ExperimentGlyph({ family }: { family: string }) {
+  return (
+    <svg
+      className="experiment-glyph"
+      viewBox="0 0 40 40"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      {family === "Growth" ? (
+        <>
+          <path d="M20 34V13M20 23Q6 24 7 12Q20 10 20 23M20 17Q32 20 34 6Q21 4 20 17" />
+        </>
+      ) : family === "Chain" ? (
+        <>
+          <circle cx="8" cy="28" r="5" />
+          <circle cx="20" cy="10" r="5" />
+          <circle cx="33" cy="27" r="5" />
+          <path d="M11 24L17 14M23 14L30 23M13 28H28" />
+        </>
+      ) : family === "Mutation" ? (
+        <>
+          <path d="M12 5C38 15 2 25 28 35M28 5C2 15 38 25 12 35M13 8H27M14 18H26M14 23H26M13 32H27" />
+        </>
+      ) : family === "Reactor" ? (
+        <>
+          <path d="M16 25V9A4 4 0 0124 9V25A8 8 0 1116 25Z" />
+          <path d="M20 14V29M29 10H34M29 17H32" />
+        </>
+      ) : (
+        <>
+          <path d="M25 7L23 17L33 15A11 11 0 0119 26L9 36L4 31L14 21A11 11 0 0125 7Z" />
+        </>
+      )}
+    </svg>
   );
 }
 export function UpgradeChoices({
@@ -87,46 +101,42 @@ export function UpgradeChoices({
 }) {
   return (
     <>
-      <p className="modal-intro">
-        Turn {run.turn} complete. Choose one experiment for this run. No turn is
-        spent. Upgrades never stack with themselves.
-      </p>
+      <p className="modal-intro">Choose one. Keep it for this garden.</p>
       <div className="upgrade-choices">
         {run.pendingUpgrade.map((id) => {
           const u = upgradeDefinition(id);
           return (
-            <button
-              key={id}
+            <article
               className={`upgrade-card family-${u.category.toLowerCase()}`}
-              onClick={() => onChoose(id)}
-              aria-label={`Install ${u.name}`}
+              key={id}
             >
-              <span className="upgrade-glyph">
-                <Icon
-                  name={
-                    u.category === "Chain"
-                      ? "sun"
-                      : u.category === "Utility"
-                        ? "dew"
-                        : "leaf"
-                  }
-                  size={25}
-                />
-              </span>
-              <span className="eyebrow">{u.category} · single copy</span>
+              <ExperimentGlyph family={u.category} />
+              <span className="eyebrow">{u.category}</span>
               <h3>{u.name}</h3>
-              <p>{u.effect}</p>
-              <small>{u.synergy}</small>
-              {u.conflicts && (
-                <em>
-                  Incompatible with{" "}
-                  {u.conflicts.map((i) => upgradeDefinition(i).name).join(", ")}
-                </em>
-              )}
-              <b>
-                Install experiment <Icon name="arrow" size={15} />
-              </b>
-            </button>
+              <p>{UPGRADE_COPY[id]}</p>
+              <details>
+                <summary>Rules & synergies</summary>
+                <p>{u.effect}</p>
+                <p>{u.synergy}</p>
+                {u.conflicts && (
+                  <p>
+                    Incompatible:{" "}
+                    {u.conflicts
+                      .map((id) => upgradeDefinition(id).name)
+                      .join(", ")}
+                    .
+                  </p>
+                )}
+                <small>Single copy · no turn spent</small>
+              </details>
+              <button
+                className="primary-button"
+                onClick={() => onChoose(id)}
+                aria-label={`Install ${u.name}`}
+              >
+                Install <Icon name="arrow" size={16} />
+              </button>
+            </article>
           );
         })}
       </div>
@@ -147,9 +157,7 @@ export function RunSetup({
     [challenge, setChallenge] = useState(false);
   return (
     <div className="run-setup">
-      <p className="modal-intro">
-        Choose the conditions. The chamber waits for your first action.
-      </p>
+      <p className="modal-intro">Choose how this garden grows.</p>
       <div className="protocol-choices">
         {PROTOCOLS.map((p) => {
           const locked = !!p.research && !research.includes(p.research);
@@ -174,8 +182,8 @@ export function RunSetup({
           Seed library <small>{specimens.length} / 2 optional</small>
         </h3>
         <p>
-          Four core species are always included. Add up to two researched
-          specimens; each draw is uniform across your chosen pool.
+          Add up to two researched specimens. Every seed in your pool is equally
+          likely.
         </p>
         <div className="specimen-options">
           {STARTER_POOL.map((k) => (
@@ -235,6 +243,24 @@ export function RunSetup({
     </div>
   );
 }
+const RESEARCH_COPY: Record<ResearchId, string> = {
+  mycology: "Mushroom + fungal traits",
+  xerophytes: "Cactus + volatile thorns",
+  lunar: "Moonflower seeds",
+  briar: "Briar seeds",
+  engineering: "Trait transfer + tissue mutations",
+  roots: "Root Network drafts",
+  echo: "Echo Harvest + Neural Mycelium",
+  reactor: "Volatile protocol + reactor upgrades",
+  symbiosis: "Symbiotic Growth protocol",
+  containment: "Containment Trial · bonus +6 Biomass",
+};
+const RESEARCH_PLANT: Partial<Record<ResearchId, PlantKind>> = {
+  mycology: "mushroom",
+  xerophytes: "cactus",
+  lunar: "moonflower",
+  briar: "briar",
+};
 export function ResearchLab({
   data,
   onPurchase,
@@ -242,219 +268,105 @@ export function ResearchLab({
   data: SaveData;
   onPurchase: (id: ResearchId) => void;
 }) {
-  const owned = ownedResearch(data);
+  const owned = ownedResearch(data),
+    [category, setCategory] = useState("Specimens");
   return (
     <>
       <div className="lab-balance">
-        <Icon name="leaf" size={32} />
-        <div>
-          <strong data-testid="biomass">{data.profile.biomass}</strong>
-          <span>BIOMASS AVAILABLE</span>
-        </div>
-        <small>
-          {owned.length} / {RESEARCH.length} experiments researched
-        </small>
+        <Icon name="leaf" size={30} />
+        <strong data-testid="biomass">{data.profile.biomass}</strong>
+        <span>
+          Biomass
+          <br />
+          <small>{owned.length}/10 researched</small>
+        </span>
       </div>
-      <p className="modal-intro">
-        Unlock different tools, then choose them for your next cultivation.
-        Research does not alter a run already in progress.
-      </p>
-      <div className="research-branches">
-        {["Specimens", "Genetics", "Reactions", "Protocols"].map((category) => (
-          <section key={category}>
-            <h3>
-              <span /> {category}
-            </h3>
-            {RESEARCH.filter((r) => r.category === category).map((r) => {
-              const purchased = owned.includes(r.id),
-                ready = canPurchase(data, r.id);
-              return (
-                <article
-                  className={`research-node ${purchased ? "owned" : ready ? "available" : "locked"}`}
-                  key={r.id}
-                >
-                  <span className="eyebrow">
-                    {purchased
-                      ? "CULTURE SECURED"
-                      : r.requires.length
-                        ? `Requires ${r.requires.map((id) => RESEARCH.find((n) => n.id === id)!.name).join(" + ")}`
-                        : "OPEN RESEARCH"}
-                  </span>
-                  <h4>{r.name}</h4>
-                  <p>{r.effect}</p>
-                  <button
-                    className="research-purchase"
-                    disabled={!ready}
-                    onClick={() => onPurchase(r.id)}
-                    aria-label={`Research ${r.name} for ${r.cost} Biomass`}
-                  >
-                    {purchased ? (
-                      <>
-                        <Icon name="check" size={14} /> Researched
-                      </>
-                    ) : (
-                      <>
-                        Research <strong>{r.cost} Biomass</strong>
-                      </>
-                    )}
-                  </button>
-                </article>
-              );
-            })}
-          </section>
-        ))}
-      </div>
-    </>
-  );
-}
-export function Collection({ data }: { data: SaveData }) {
-  const [tab, setTab] = useState<
-    "mutations" | "synergies" | "powerups" | "reactor" | "records"
-  >("mutations");
-  const research = ownedResearch(data);
-  return (
-    <section className="collection">
-      <nav aria-label="Field guide chapters">
-        {(
-          ["mutations", "synergies", "powerups", "reactor", "records"] as const
-        ).map((t) => (
-          <button key={t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-            {t}
+      <nav className="chapter-tabs" aria-label="Research branches">
+        {["Specimens", "Genetics", "Reactions", "Protocols"].map((c) => (
+          <button
+            key={c}
+            aria-label={c}
+            aria-pressed={category === c}
+            onClick={() => setCategory(c)}
+          >
+            {c}
+            <small>
+              {
+                RESEARCH.filter((n) => n.category === c && owned.includes(n.id))
+                  .length
+              }
+              /{RESEARCH.filter((n) => n.category === c).length}
+            </small>
           </button>
         ))}
       </nav>
-      {tab === "mutations" && (
-        <>
-          <p className="collection-progress">
-            {data.profile.discoveries.length} / {MUTATIONS.length} mutations
-            discovered · +3 Biomass on each first discovery
-          </p>
-          <div className="mutation-catalogue">
-            {MUTATIONS.map((m) => {
-              const known = data.profile.discoveries.includes(m.id);
-              return (
-                <article
-                  key={m.id}
-                  className={known ? "known" : "unknown"}
-                  style={{ "--trait": m.color } as CSSProperties}
-                >
-                  <span className="trait-sigil">
-                    {known ? <Icon name="leaf" /> : "?"}
-                  </span>
-                  <div>
-                    <h3>{known ? m.name : "Unidentified tissue"}</h3>
-                    <p>{known ? m.effect : m.clue}</p>
-                    {known && <small>{m.prerequisite}</small>}
-                    {!known && m.requires && !research.includes(m.requires) && (
-                      <small>Further research required</small>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </>
-      )}
-      {tab === "synergies" && (
-        <>
-          <p className="modal-intro">
-            Interactions recorded in your experiments.
-          </p>
-          {data.profile.synergies.length ? (
-            <ul className="discovered-synergies">
-              {data.profile.synergies.map((s) => (
-                <li key={s}>
-                  <Icon name="check" size={16} />
-                  {s === "clover-aura"
-                    ? "Living clover amplifies a neighboring harvest."
-                    : s === "catalyst-chain"
-                      ? "A catalyst activates a ripe plant into another harvest."
-                      : s === "root-relay"
-                        ? "Connected tissue relays directed growth."
-                        : s === "reactor-overload"
-                          ? "An overload clears a footprint and charges your next seeds."
-                          : s.startsWith("mushroom-")
-                            ? `Mushroom can echo ${PLANTS[s.slice(9) as PlantKind]?.name ?? "a neighbor"}.`
-                            : s}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>
-              No synergies recorded yet. Harvest beside a ripe Clover or build a
-              Rose chain.
-            </p>
-          )}
-        </>
-      )}
-      {tab === "powerups" && (
-        <div className="powerup-catalogue">
-          {UPGRADES.map((u) => {
-            const unlocked = !u.research || research.includes(u.research);
+      <div className="research-branches">
+        <section aria-label={category}>
+          {RESEARCH.filter((r) => r.category === category).map((r) => {
+            const purchased = owned.includes(r.id),
+              ready = canPurchase(data, r.id),
+              missing = r.requires.filter((id) => !owned.includes(id));
             return (
-              <article key={u.id} className={unlocked ? "" : "locked"}>
-                <span className="eyebrow">
-                  {u.category} ·{" "}
-                  {unlocked ? "IN DRAFT POOL" : "RESEARCH LOCKED"}
-                </span>
-                <h3>{u.name}</h3>
-                <p>{u.effect}</p>
-                {u.conflicts && (
-                  <small>
-                    Conflicts:{" "}
-                    {u.conflicts
-                      .map((id) => upgradeDefinition(id).name)
-                      .join(", ")}
-                  </small>
-                )}
+              <article
+                className={`research-node ${purchased ? "owned" : ready ? "available" : "locked"}`}
+                key={r.id}
+              >
+                <div className="research-symbol">
+                  {RESEARCH_PLANT[r.id] ? (
+                    <PlantArt kind={RESEARCH_PLANT[r.id]!} />
+                  ) : (
+                    <ExperimentGlyph
+                      family={
+                        category === "Genetics"
+                          ? "Mutation"
+                          : category === "Protocols"
+                            ? "Utility"
+                            : "Chain"
+                      }
+                    />
+                  )}
+                </div>
+                <div className="research-content">
+                  <h3>{r.name}</h3>
+                  <p>{RESEARCH_COPY[r.id]}</p>
+                  {!!missing.length && (
+                    <small>
+                      Needs{" "}
+                      {missing
+                        .map((id) => RESEARCH.find((n) => n.id === id)!.name)
+                        .join(" + ")}
+                    </small>
+                  )}
+                  <details>
+                    <summary>Details</summary>
+                    <p>{r.effect}</p>
+                    <small>Applies to your next garden.</small>
+                  </details>
+                </div>
+                <button
+                  className="research-purchase"
+                  disabled={!ready}
+                  onClick={() => onPurchase(r.id)}
+                  aria-label={`Research ${r.name} for ${r.cost} Biomass`}
+                >
+                  {purchased ? (
+                    <>
+                      <Icon name="check" size={16} />
+                      <span>Owned</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong>{r.cost}</strong>
+                      <span>Research</span>
+                    </>
+                  )}
+                </button>
               </article>
             );
           })}
-        </div>
-      )}
-      {tab === "reactor" && (
-        <div className="guide-rules">
-          <h3>Heat is an opportunity.</h3>
-          <p>
-            Harvest adds 2 + 3 × depth heat. Clover harvest cools 6; Moonflower
-            cools 12. Venting costs 3 dew and one turn to cool 15.
-          </p>
-          <p>
-            Stable 0–24: no bonus. Reactive 25–49: +3 points per depth. Volatile
-            50–74: +6 per depth. Critical 75–99: +9 per depth. Each harvest uses
-            the heat before its own heat increase.
-          </p>
-          <p>
-            Reaching 100 latches one overload at the end of this action, even if
-            later effects cool the reactor. It removes up to three surviving
-            plants in the root plot, then N/E/S/W. No harvest effects. Gain 20 +
-            5 per lost plant points, up to 3 dew and two charged plantings. Heat
-            resets to 35. A charged planting starts ripe; it still uses one dew
-            if available.
-          </p>
-          <p>
-            Upgrade drafts follow turns 5, 10, 15 and 20. Choose one before
-            acting again. Every upgrade has a single-copy cap. Adaptive Tissue
-            and Cross-Pollination conflict.
-          </p>
-        </div>
-      )}
-      {tab === "records" && (
-        <div className="result-stats">
-          <div>
-            <strong>{data.profile.rewardedRuns.length}</strong>
-            <span>completed runs</span>
-          </div>
-          <div>
-            <strong>{data.best}</strong>
-            <span>personal best</span>
-          </div>
-          <div>
-            <strong>{data.profile.earned}</strong>
-            <span>lifetime Biomass</span>
-          </div>
-        </div>
-      )}
-    </section>
+        </section>
+      </div>
+      <p className="fine-print">Unlock choices, not permanent score boosts.</p>
+    </>
   );
 }

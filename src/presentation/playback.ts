@@ -19,15 +19,23 @@ export function buildPlaybackFrames(events: GameEvent[]): PlaybackFrame[] {
         events: [event],
         duration:
           event.type === "harvested"
-            ? 320
+            ? 170
             : event.type === "copied"
-              ? 400
+              ? 160
               : event.type === "growth"
-                ? 180
-                : 220,
+                ? 110
+                : event.type === "heat" || event.type === "dew"
+                  ? 0
+                  : event.type === "overload"
+                    ? 260
+                    : 120,
       });
     }
   }
+  const total = frames.reduce((sum, frame) => sum + frame.duration, 0);
+  if (total > 6500)
+    for (const frame of frames)
+      frame.duration = Math.round((frame.duration * 6500) / total);
   return frames;
 }
 export function presentEvents(
